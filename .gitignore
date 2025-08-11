@@ -1,0 +1,8 @@
+./hamster.db
+.venv
+__pycache__/
+
+# 每个__pycache__文件夹都忽略
+*.pyc
+*.pyo
+*.pyd

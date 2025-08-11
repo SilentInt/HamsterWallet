@@ -1,0 +1,734 @@
+{% extends "base.html" %}
+
+{% block title %}商品列表 - 仓鼠记账{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="page-title"><i class="fas fa-shopping-cart me-3"></i>商品管理</h1>
+    <p class="page-subtitle">浏览和管理所有识别到的商品信息</p>
+    
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <span class="badge bg-primary me-2">总计 {{ pagination.total }} 个商品</span>
+        </div>
+    </div>
+</div>
+
+<!-- 搜索和筛选区域 -->
+<div class="filter-section">
+    <div class="filter-header">
+        <button class="filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" 
+                aria-expanded="false" aria-controls="filterCollapse">
+            <i class="fas fa-filter"></i>
+            <span>筛选条件</span>
+            <i class="fas fa-chevron-down" id="filterToggleIcon"></i>
+        </button>
+    </div>
+    
+    <div class="collapse" id="filterCollapse">
+        <div class="filter-body">
+            <form id="filterForm" method="GET">
+                <div class="row g-3">
+                    <!-- 搜索框 -->
+                    <div class="col-md-4 filter-form-group">
+                        <label class="filter-label">搜索内容</label>
+                        <div class="filter-input-group input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" name="search" value="{{ request.args.get('search', '') }}" 
+                                   placeholder="搜索商品名称、备注...">
+                        </div>
+                    </div>
+                    
+                    <!-- 特价筛选 -->
+                    <div class="col-md-2 filter-form-group">
+                        <label class="filter-label">特价</label>
+                        <select class="form-select" name="is_special_price">
+                            <option value="">全部商品</option>
+                            <option value="true" {{ 'selected' if request.args.get('is_special_price') == 'true' }}>特价商品</option>
+                            <option value="false" {{ 'selected' if request.args.get('is_special_price') == 'false' }}>非特价</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 分类筛选 -->
+                    <div class="col-md-2 filter-form-group">
+                        <label class="filter-label">分类</label>
+                        <input type="text" class="form-control" name="category_filter" 
+                               value="{{ request.args.get('category_filter', '') }}" 
+                               placeholder="筛选分类...">
+                    </div>
+                    
+                    <!-- 排序方式 -->
+                    <div class="col-md-2 filter-form-group">
+                        <label class="filter-label">排序</label>
+                        <select class="form-select" name="sort_by">
+                            <option value="created_at" {{ 'selected' if request.args.get('sort_by', 'created_at') == 'created_at' }}>创建时间</option>
+                            <option value="price_jpy" {{ 'selected' if request.args.get('sort_by') == 'price_jpy' }}>日元价格</option>
+                            <option value="price_cny" {{ 'selected' if request.args.get('sort_by') == 'price_cny' }}>人民币价格</option>
+                            <option value="name_zh" {{ 'selected' if request.args.get('sort_by') == 'name_zh' }}>商品名称</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 排序顺序 -->
+                    <div class="col-md-2 filter-form-group">
+                        <label class="filter-label">顺序</label>
+                        <select class="form-select" name="order">
+                            <option value="desc" {{ 'selected' if request.args.get('order', 'desc') == 'desc' }}>降序</option>
+                            <option value="asc" {{ 'selected' if request.args.get('order') == 'asc' }}>升序</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="filter-actions">
+                    <button type="submit" class="filter-btn-primary">
+                        <i class="fas fa-search me-2"></i>应用筛选
+                    </button>
+                    <button type="button" class="filter-btn-secondary" onclick="clearFilters()">
+                        <i class="fas fa-times me-2"></i>清除全部
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 商品列表 - 紧凑型设计 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-shopping-cart me-2"></i>商品列表
+            <span class="badge bg-primary ms-2">{{ pagination.total }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if items %}
+        <!-- 紧凑型商品列表 -->
+        <div class="row g-2" id="itemsGrid">
+            {% for item in items %}
+            <div class="col-12">
+                <div class="item-compact">
+                    <!-- 商品主要信息行 -->
+                    <div class="item-name-compact">
+                        {% if item.name_zh %}
+                        {{ item.name_zh }}
+                        {% else %}
+                        {{ item.name_ja or '未命名商品' }}
+                        {% endif %}
+                        {% if item.name_ja and item.name_zh %}
+                        <span class="text-muted small ms-2">{{ item.name_ja }}</span>
+                        {% endif %}
+                        {% if item.is_special_offer %}
+                        <span class="badge bg-warning ms-2">特价</span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- 价格和操作行 -->
+                    <div class="item-details-compact">
+                        <div class="item-price-compact">
+                            {% if item.price_jpy %}
+                            <span class="price-jpy fw-bold">¥{{ "%.0f"|format(item.price_jpy) }}</span>
+                            {% endif %}
+                            {% if item.price_cny %}
+                            <span class="price-cny text-muted ms-2">￥{{ "%.2f"|format(item.price_cny) }}</span>
+                            {% endif %}
+                            {% if not item.price_jpy and not item.price_cny %}
+                            <span class="text-muted">价格待定</span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('frontend.receipt_detail', receipt_id=item.receipt.id) }}" 
+                               class="btn btn-outline-primary" title="查看小票">
+                                <i class="fas fa-receipt"></i>
+                            </a>
+                            <button class="btn btn-outline-warning" 
+                                    onclick="editItem({{ item.id }})" title="编辑">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" 
+                                    onclick="deleteItem({{ item.id }})" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 分类和附加信息行 -->
+                    <div class="item-meta-compact">
+                        <div class="item-categories-compact">
+                            {% if item.category_1 %}
+                            <span class="badge bg-primary">{{ item.category_1 }}</span>
+                            {% endif %}
+                            {% if item.category_2 %}
+                            <span class="badge bg-info">{{ item.category_2 }}</span>
+                            {% endif %}
+                            {% if item.category_3 %}
+                            <span class="badge bg-success">{{ item.category_3 }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if item.notes %}
+                        <div class="item-notes-compact text-muted">
+                            <i class="fas fa-comment me-1"></i>{{ item.notes[:30] }}{% if item.notes|length > 30 %}...{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- 来源信息行 -->
+                    <div class="item-source-compact">
+                        <div class="small text-muted">
+                            <i class="fas fa-receipt me-1"></i>
+                            <a href="{{ url_for('frontend.receipt_detail', receipt_id=item.receipt.id) }}" 
+                               class="text-decoration-none text-muted">{{ item.receipt.name }}</a>
+                            {% if item.receipt.store_name %}
+                            <span class="mx-1">•</span>
+                            <i class="fas fa-store me-1"></i>{{ item.receipt.store_name }}
+                            {% endif %}
+                            <span class="mx-1">•</span>
+                            <i class="fas fa-clock me-1"></i>{{ item.receipt.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% else %}
+        <!-- 空状态 -->
+        <div class="text-center py-5">
+            <div class="mb-4">
+                <i class="fas fa-shopping-cart fa-4x" style="color: var(--ios-gray-4);"></i>
+            </div>
+            <h5 class="fw-bold mb-2">暂无商品信息</h5>
+            <p class="text-muted mb-4">
+                {% set has_filters = request.args.get('search') or request.args.get('is_special_price') or request.args.get('category_filter') or request.args.get('sort_by') != 'created_at' or request.args.get('order') == 'asc' %}
+                {% if has_filters %}
+                当前筛选条件下没有找到商品，请尝试调整筛选条件
+                {% else %}
+                还没有识别到商品信息，<a href="{{ url_for('frontend.receipt_list') }}" class="text-decoration-none">去上传小票吧！</a>
+                {% endif %}
+            </p>
+            <div class="d-flex justify-content-center gap-2">
+                {% if has_filters %}
+                <button class="btn btn-primary animate-in" onclick="clearFilters()">
+                    <i class="fas fa-times me-2"></i>清除筛选
+                </button>
+                {% endif %}
+                <a href="{{ url_for('frontend.receipt_list') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-plus me-2"></i>上传小票
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 加载更多按钮（桌面端点击，移动端自动） -->
+<div id="loadMoreContainer" class="text-center mt-4" style="display: none;">
+    {% if pagination.page < pagination.pages %}
+    <button id="loadMoreBtn" class="btn btn-outline-primary d-none d-md-block" 
+            data-next-page="{{ pagination.page + 1 }}"
+            data-total-pages="{{ pagination.pages }}"
+            data-search="{{ request.args.get('search', '') }}"
+            data-is-special-price="{{ request.args.get('is_special_price', '') }}"
+            data-category-filter="{{ request.args.get('category_filter', '') }}"
+            data-sort-by="{{ request.args.get('sort_by', 'created_at') }}"
+            data-order="{{ request.args.get('order', 'desc') }}">
+        <i class="fas fa-chevron-down me-1"></i> 点击加载更多
+    </button>
+    {% endif %}
+    <div id="loadingIndicator" class="mt-3" style="display: none;">
+        <div class="spinner-border spinner-border-sm text-primary" role="status">
+            <span class="visually-hidden">加载中...</span>
+        </div>
+        <span class="ms-2 text-muted">正在加载...</span>
+    </div>
+</div>
+
+<!-- 分页（桌面端） -->
+{% if pagination.pages > 1 %}
+<div class="d-flex justify-content-center mt-4">
+    <nav aria-label="商品列表分页" id="paginationNav">
+        <ul class="pagination">
+            <!-- 上一页 -->
+            {% if pagination.page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('frontend.item_list', 
+                    page=pagination.page-1, 
+                    search=request.args.get('search', ''),
+                    is_special_price=request.args.get('is_special_price', ''),
+                    category_filter=request.args.get('category_filter', ''),
+                    sort_by=request.args.get('sort_by', 'created_at'),
+                    order=request.args.get('order', 'desc')) }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            <!-- 页码 -->
+            {% for page_num in range(1, pagination.pages + 1) %}
+                {% if page_num == pagination.page %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% elif page_num <= 3 or page_num > pagination.pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('frontend.item_list', 
+                        page=page_num,
+                        search=request.args.get('search', ''),
+                        is_special_price=request.args.get('is_special_price', ''),
+                        category_filter=request.args.get('category_filter', ''),
+                        sort_by=request.args.get('sort_by', 'created_at'),
+                        order=request.args.get('order', 'desc')) }}">{{ page_num }}</a>
+                </li>
+                {% elif page_num == 4 or page_num == pagination.pages - 3 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            <!-- 下一页 -->
+            {% if pagination.page < pagination.pages %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('frontend.item_list', 
+                    page=pagination.page+1,
+                    search=request.args.get('search', ''),
+                    is_special_price=request.args.get('is_special_price', ''),
+                    category_filter=request.args.get('category_filter', ''),
+                    sort_by=request.args.get('sort_by', 'created_at'),
+                    order=request.args.get('order', 'desc')) }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
+
+
+
+<!-- 编辑商品模态框 -->
+<div class="modal fade" id="editItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑商品信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editItemForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">中文名称</label>
+                        <input type="text" class="form-control" name="name_zh" required />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">日文名称</label>
+                        <input type="text" class="form-control" name="name_ja" />
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">日元价格</label>
+                                <input type="number" step="0.01" class="form-control" name="price_jpy" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">人民币价格</label>
+                                <input type="number" step="0.01" class="form-control" name="price_cny" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_special_offer" id="editIsSpecialPrice">
+                            <label class="form-check-label" for="editIsSpecialPrice">特价商品</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">特价信息</label>
+                        <input type="text" class="form-control" name="special_info" placeholder="例如：8折优惠、买一送一等" />
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">一级分类</label>
+                                <input type="text" class="form-control" name="category_1" placeholder="例如：食品" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">二级分类</label>
+                                <input type="text" class="form-control" name="category_2" placeholder="例如：零食" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">三级分类</label>
+                                <input type="text" class="form-control" name="category_3" placeholder="例如：饼干" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea class="form-control" name="notes" rows="2" placeholder="可选"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 清除筛选条件
+function clearFilters() {
+    window.location.href = "{{ url_for('frontend.item_list') }}";
+}
+
+// 编辑商品
+function editItem(itemId) {
+    // 先获取商品数据
+    $.ajax({
+        url: `/api/items/${itemId}`,
+        type: 'GET',
+        success: function(item) {
+            // 填充表单数据
+            const form = $('#editItemForm');
+            form.data('item-id', itemId);
+            
+            form.find('input[name="name_zh"]').val(item.name_zh || '');
+            form.find('input[name="name_ja"]').val(item.name_ja || '');
+            form.find('input[name="price_jpy"]').val(item.price_jpy || '');
+            form.find('input[name="price_cny"]').val(item.price_cny || '');
+            form.find('input[name="category_1"]').val(item.category_1 || '');
+            form.find('input[name="category_2"]').val(item.category_2 || '');
+            form.find('input[name="category_3"]').val(item.category_3 || '');
+            form.find('input[name="special_info"]').val(item.special_info || '');
+            form.find('textarea[name="notes"]').val(item.notes || '');
+            form.find('input[name="is_special_offer"]').prop('checked', item.is_special_offer || false);
+            
+            // 显示模态框
+            $('#editItemModal').modal('show');
+        },
+        error: function(xhr) {
+            alert('获取商品信息失败: ' + (xhr.responseJSON?.message || '未知错误'));
+        }
+    });
+}
+
+// 编辑商品表单提交
+$('#editItemForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    data.is_special_offer = formData.has('is_special_offer');
+    const itemId = $('#editItemForm').data('item-id');
+    
+    $.ajax({
+        url: `/api/items/${itemId}`,
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            $('#editItemModal').modal('hide');
+            location.reload();
+        },
+        error: function(xhr) {
+            alert('保存失败: ' + (xhr.responseJSON?.message || '未知错误'));
+        }
+    });
+});
+
+// 删除商品
+function deleteItem(itemId) {
+    if (confirm('确定要删除这个商品吗？')) {
+        $.ajax({
+            url: `/api/items/${itemId}`,
+            type: 'DELETE',
+            success: function(response) {
+                location.reload();
+            },
+            error: function(xhr) {
+                alert('删除失败: ' + (xhr.responseJSON?.message || '未知错误'));
+            }
+        });
+    }
+}
+
+// 自动提交表单当筛选条件改变
+$('#filterForm select, #filterForm input').on('change input', function() {
+    // 延迟提交以给用户时间看到变化
+    clearTimeout(window.filterSubmitTimeout);
+    window.filterSubmitTimeout = setTimeout(() => {
+        $('#filterForm').submit();
+    }, 300);
+});
+
+// 移动端滚动加载更多功能
+document.addEventListener('DOMContentLoaded', function() {
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const itemsGrid = document.getElementById('itemsGrid');
+    let isLoading = false; // 防止重复加载
+    
+    // 检测移动端
+    function isMobile() {
+        return window.innerWidth <= 768;
+    }
+    
+    // 加载更多数据的函数
+    function loadMoreData() {
+        if (isLoading || !loadMoreBtn || !loadMoreBtn.dataset.nextPage) return;
+        
+        isLoading = true;
+        const nextPage = loadMoreBtn.dataset.nextPage;
+        const totalPages = loadMoreBtn.dataset.totalPages;
+        const search = loadMoreBtn.dataset.search;
+        const isSpecialPrice = loadMoreBtn.dataset.isSpecialPrice;
+        const categoryFilter = loadMoreBtn.dataset.categoryFilter;
+        const sortBy = loadMoreBtn.dataset.sortBy;
+        const order = loadMoreBtn.dataset.order;
+        
+        // 显示加载动画
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'block';
+            loadingIndicator.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">加载中...</span></div><span class="ms-2 text-muted">正在加载...</span>';
+        }
+        
+        // 构建请求URL
+        const params = new URLSearchParams({
+            page: nextPage,
+            search: search,
+            is_special_price: isSpecialPrice,
+            category_filter: categoryFilter,
+            sort_by: sortBy,
+            order: order
+        });
+        
+        // 请求新页面数据
+        fetch(`{{ url_for('frontend.item_list') }}?${params.toString()}`)
+            .then(response => response.text())
+            .then(html => {
+                // 解析HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // 提取新的商品卡片
+                const newItems = doc.querySelectorAll('#itemsGrid .col-12');
+                
+                // 添加到当前网格
+                newItems.forEach((item, index) => {
+                    // 为新添加的项目设置初始状态
+                    item.style.opacity = '0';
+                    item.style.transform = 'translateY(20px)';
+                    item.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                    item.style.transitionDelay = `${index * 0.1}s`;
+                    
+                    itemsGrid.appendChild(item);
+                    
+                    // 触发动画
+                    setTimeout(() => {
+                        item.style.opacity = '1';
+                        item.style.transform = 'translateY(0)';
+                    }, 50);
+                });
+                
+                // 更新状态
+                const currentPage = parseInt(nextPage);
+                if (currentPage < parseInt(totalPages)) {
+                    loadMoreBtn.dataset.nextPage = currentPage + 1;
+                } else {
+                    // 没有更多页面了
+                    loadMoreBtn.remove(); // 移除按钮
+                    if (loadingIndicator) {
+                        loadingIndicator.innerHTML = '<span class="text-muted"><i class="fas fa-check-circle me-1"></i>所有数据已加载完毕</span>';
+                        setTimeout(() => {
+                            loadingIndicator.style.display = 'none';
+                        }, 2000);
+                    }
+                    return;
+                }
+                
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+                isLoading = false;
+            })
+            .catch(error => {
+                console.error('加载失败:', error);
+                if (loadingIndicator) {
+                    loadingIndicator.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>加载失败，请重试</span>';
+                    setTimeout(() => {
+                        loadingIndicator.style.display = 'none';
+                    }, 3000);
+                }
+                isLoading = false;
+            });
+    }
+    
+    // 滚动到底部检测
+    function isNearBottom() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        // 当距离底部小于100px时触发加载
+        return scrollTop + windowHeight >= documentHeight - 100;
+    }
+    
+    // 滚动事件监听（仅在移动端）
+    let scrollTimeout;
+    function handleScroll() {
+        if (!isMobile()) return;
+        
+        // 防抖处理
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            if (isNearBottom() && !isLoading) {
+                loadMoreData();
+            }
+        }, 100);
+    }
+    
+    // 按钮点击事件（桌面端备用）
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', function() {
+            loadMoreData();
+        });
+    }
+    
+    // 监听滚动事件
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', function() {
+        // 响应式处理
+    });
+});
+
+// 筛选折叠/展开图标切换
+document.addEventListener('DOMContentLoaded', function() {
+    const filterCollapse = document.getElementById('filterCollapse');
+    const toggleIcon = document.getElementById('filterToggleIcon');
+    const toggleBtn = document.querySelector('.filter-toggle-btn');
+    
+    if (filterCollapse && toggleIcon) {
+        filterCollapse.addEventListener('show.bs.collapse', function() {
+            toggleIcon.style.transform = 'rotate(180deg)';
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', 'true');
+            }
+        });
+        
+        filterCollapse.addEventListener('hide.bs.collapse', function() {
+            toggleIcon.style.transform = 'rotate(0deg)';
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+        
+        // 如果有筛选条件，自动展开
+        const hasFilters = '{{ request.args.get("search") or "" }}' || 
+                          '{{ request.args.get("is_special_price") or "" }}' || 
+                          '{{ request.args.get("category_filter") or "" }}' ||
+                          '{{ request.args.get("sort_by") or "created_at" }}' !== 'created_at' ||
+                          '{{ request.args.get("order") or "desc" }}' === 'asc';
+        
+        if (hasFilters) {
+            const collapse = new bootstrap.Collapse(filterCollapse, { show: true });
+        }
+    }
+
+    // 智能搜索防抖
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            // 防抖延迟
+            searchTimeout = setTimeout(() => {
+                if (query.length >= 2 || query.length === 0) {
+                    // 自动提交表单
+                    this.closest('form').submit();
+                }
+            }, 800);
+        });
+    }
+
+    // 快速筛选按钮
+    document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filterType = this.dataset.filter;
+            const filterValue = this.dataset.value;
+            
+            // 设置对应的筛选值
+            const form = document.getElementById('filterForm');
+            if (form) {
+                const input = form.querySelector(`[name="${filterType}"]`);
+                if (input) {
+                    input.value = filterValue;
+                    form.submit();
+                }
+            }
+        });
+    });
+
+    // 为商品列表项添加进入动画
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+                observer.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+    
+    // 为现有商品项添加动画
+    document.querySelectorAll('.item-compact').forEach((item, index) => {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        item.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        item.style.transitionDelay = `${index * 0.1}s`;
+        
+        observer.observe(item);
+    });
+
+    // 实时价格范围筛选
+    const priceInputs = document.querySelectorAll('input[name^="price_"]');
+    priceInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (!isNaN(value)) {
+                // 格式化显示
+                this.style.color = 'var(--ios-green)';
+            } else {
+                this.style.color = '';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

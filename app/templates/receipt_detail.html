@@ -1,0 +1,1076 @@
+{% extends "base.html" %} {% block title %}小票详情 - {{ receipt.name }} -
+仓鼠记账{% endblock %} {% block content %}
+<!-- 面包屑导航 -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('frontend.receipt_list') }}">
+        <i class="fas fa-arrow-left me-1"></i>小票列表
+      </a>
+    </li>
+    <li class="breadcrumb-item active">{{ receipt.name }}</li>
+  </ol>
+</nav>
+
+<!-- 页面标题和操作 -->
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div class="flex-grow-1">
+    <h1 class="page-title mb-1">
+      <i class="fas fa-receipt me-2"></i>{{ receipt.name }}
+    </h1>
+    <div class="d-flex align-items-center gap-2">
+      <span
+        class="badge bg-{{ 'success' if receipt.status.value == '识别成功' 
+                            else 'warning' if receipt.status.value in ['待处理', '正在识别'] 
+                            else 'danger' }}"
+      >
+        {{ receipt.status.value }}
+      </span>
+      {% if receipt.store_name %}
+      <span class="text-muted small">{{ receipt.store_name }}</span>
+      {% endif %} {% if receipt.items|length > 0 %}
+      <span class="badge bg-primary ms-1"
+        >{{ receipt.items|length }} 个商品</span
+      >
+      {% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-1 flex-shrink-0">
+    <button
+      class="btn btn-sm btn-primary"
+      data-bs-toggle="modal"
+      data-bs-target="#editReceiptModal"
+      title="编辑小票"
+    >
+      <i class="fas fa-edit"></i>
+    </button>
+    <button
+      class="btn btn-sm btn-warning"
+      onclick="reprocessReceipt({{ receipt.id }})"
+      title="重新识别"
+    >
+      <i class="fas fa-robot"></i>
+    </button>
+    <button
+      class="btn btn-sm btn-danger"
+      onclick="deleteReceipt({{ receipt.id }})"
+      title="删除小票"
+    >
+      <i class="fas fa-trash"></i>
+    </button>
+  </div>
+</div>
+
+<div class="row">
+  <!-- 左侧：小票信息和图片 -->
+  <div class="col-lg-4">
+    <!-- 小票图片 -->
+    {% if receipt.image_filename %}
+    <div class="card mb-4">
+      <div class="card-header">
+        <button
+          class="btn btn-link p-0 w-100 text-start text-decoration-none"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#imageCollapse"
+          aria-expanded="false"
+          aria-controls="imageCollapse"
+          id="imageToggleBtn"
+        >
+          <h5 class="mb-0">
+            <i class="fas fa-image me-2"></i>小票图片
+            <i
+              class="fas fa-chevron-down ms-1 float-end"
+              id="imageToggleIcon"
+            ></i>
+          </h5>
+        </button>
+      </div>
+      <div class="collapse" id="imageCollapse">
+        <div class="card-body p-0">
+          <img
+            src="{{ url_for('static', filename='uploads/' + receipt.image_filename) }}"
+            class="w-100"
+            style="cursor: pointer; border-radius: 0 0 16px 16px"
+            onclick="showImageModal('{{ url_for('static', filename='uploads/' + receipt.image_filename) }}', '{{ receipt.name }}')"
+            alt="{{ receipt.name }}"
+          />
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 小票基本信息 -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <button
+          class="btn btn-link p-0 w-100 text-start text-decoration-none"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#infoCollapse"
+          aria-expanded="true"
+          aria-controls="infoCollapse"
+          id="infoToggleBtn"
+        >
+          <h5 class="mb-0">
+            <i class="fas fa-info-circle me-2"></i>基本信息
+            <i class="fas fa-chevron-up ms-1 float-end" id="infoToggleIcon"></i>
+          </h5>
+        </button>
+      </div>
+      <div class="collapse show" id="infoCollapse">
+        <div class="card-body">
+          <!-- 紧凑型信息布局 -->
+          <div class="receipt-info-compact">
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">名称</span>
+                <span class="info-value-compact">{{ receipt.name }}</span>
+              </div>
+            </div>
+
+            {% if receipt.store_name %}
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">店铺</span>
+                <span class="info-value-compact">{{ receipt.store_name }}</span>
+              </div>
+            </div>
+            {% endif %} {% if receipt.store_category %}
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">分类</span>
+                <span class="info-value-compact"
+                  >{{ receipt.store_category }}</span
+                >
+              </div>
+            </div>
+            {% endif %} {% if receipt.notes %}
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">备注</span>
+                <span class="info-value-compact">{{ receipt.notes }}</span>
+              </div>
+            </div>
+            {% endif %} {% if receipt.text_description %}
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">描述</span>
+                <span class="info-value-compact"
+                  >{{ receipt.text_description[:50] }}{% if
+                  receipt.text_description|length > 50 %}...{% endif %}</span
+                >
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">上传时间</span>
+                <span class="info-value-compact small"
+                  >{{ receipt.created_at.strftime('%m-%d %H:%M') }}</span
+                >
+              </div>
+            </div>
+
+            {% if receipt.transaction_time %}
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">交易时间</span>
+                <span class="info-value-compact small"
+                  >{{ receipt.transaction_time.strftime('%m-%d %H:%M') }}</span
+                >
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">最后修改</span>
+                <span class="info-value-compact small"
+                  >{{ receipt.updated_at.strftime('%m-%d %H:%M') }}</span
+                >
+              </div>
+            </div>
+
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">商品数量</span>
+                <span class="info-value-compact">
+                  <span class="badge bg-primary"
+                    >{{ receipt.items|length }} 个</span
+                  >
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 价格汇总 -->
+    {% set total_yen = receipt.items|map(attribute='price_jpy')|select|sum %} {%
+    set total_rmb = receipt.items|map(attribute='price_cny')|select|sum %} {% if
+    total_yen and total_yen > 0 or total_rmb and total_rmb > 0 %}
+    <div class="card mb-4">
+      <div class="card-header">
+        <button
+          class="btn btn-link p-0 w-100 text-start text-decoration-none"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#summaryCollapse"
+          aria-expanded="true"
+          aria-controls="summaryCollapse"
+          id="summaryToggleBtn"
+        >
+          <h5 class="mb-0">
+            <i class="fas fa-calculator me-2"></i>金额汇总
+            <i
+              class="fas fa-chevron-up ms-1 float-end"
+              id="summaryToggleIcon"
+            ></i>
+          </h5>
+        </button>
+      </div>
+      <div class="collapse show" id="summaryCollapse">
+        <div class="card-body">
+          <div class="receipt-info-compact">
+            {% if total_yen and total_yen > 0 %}
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">日元总计</span>
+                <span class="info-value-compact">
+                  <span class="fw-bold text-info"
+                    >¥{{ "%.0f"|format(total_yen) }}</span
+                  >
+                </span>
+              </div>
+            </div>
+            {% endif %} {% if total_rmb and total_rmb > 0 %}
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">人民币总计</span>
+                <span class="info-value-compact">
+                  <span class="fw-bold text-success"
+                    >￥{{ "%.2f"|format(total_rmb) }}</span
+                  >
+                </span>
+              </div>
+            </div>
+            {% endif %} {% if receipt.exchange_rate %}
+            <div class="info-item-compact">
+              <div class="info-row-compact">
+                <span class="info-label-compact">汇率</span>
+                <span class="info-value-compact"
+                  >{{ receipt.exchange_rate }}</span
+                >
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 右侧：商品列表 -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0">
+          <i class="fas fa-shopping-cart me-2"></i>商品列表
+          <span class="badge bg-primary ms-2">{{ receipt.items|length }}</span>
+        </h5>
+        <button
+          class="btn btn-success"
+          data-bs-toggle="modal"
+          data-bs-target="#addItemModal"
+        >
+          <i class="fas fa-plus me-2"></i>添加商品
+        </button>
+      </div>
+      <div class="card-body">
+        {% if receipt.items %}
+        <!-- 紧凑型商品卡片列表 -->
+        <div class="row g-2">
+          {% for item in receipt.items %}
+          <div class="col-12">
+            <div class="item-compact">
+              <!-- 商品主要信息 -->
+              <div class="item-name-compact">
+                {% if item.name_zh %} {{ item.name_zh }} {% else %} {{
+                item.name_ja or '未命名商品' }} {% endif %} {% if item.name_ja
+                and item.name_zh %}
+                <span class="text-muted small ms-2">{{ item.name_ja }}</span>
+                {% endif %}
+              </div>
+
+              <!-- 价格和操作行 -->
+              <div class="item-details-compact">
+                <div class="item-price-compact">
+                  {% if item.price_jpy %}
+                  <span class="price-jpy fw-bold"
+                    >¥{{ "%.0f"|format(item.price_jpy) }}</span
+                  >
+                  {% endif %} {% if item.price_cny %}
+                  <span class="price-cny text-muted"
+                    >￥{{ "%.2f"|format(item.price_cny) }}</span
+                  >
+                  {% endif %} {% if not item.price_jpy and not item.price_cny %}
+                  <span class="text-muted">价格待定</span>
+                  {% endif %} {% if item.is_special_offer %}
+                  <span class="badge bg-warning ms-1">特价</span>
+                  {% endif %}
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="btn-group btn-group-sm">
+                  <button
+                    class="btn btn-outline-primary"
+                    onclick="editItem({{ item.id }})"
+                    title="编辑"
+                  >
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button
+                    class="btn btn-outline-danger"
+                    onclick="deleteItem({{ item.id }})"
+                    title="删除"
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 分类和备注信息 -->
+              <div class="item-meta-compact">
+                <div class="item-categories-compact">
+                  {% if item.category_1 %}
+                  <span class="badge bg-primary">{{ item.category_1 }}</span>
+                  {% endif %} {% if item.category_2 %}
+                  <span class="badge bg-info">{{ item.category_2 }}</span>
+                  {% endif %} {% if item.category_3 %}
+                  <span class="badge bg-success">{{ item.category_3 }}</span>
+                  {% endif %}
+                </div>
+
+                {% if item.notes or item.special_info %}
+                <div class="item-notes-compact">
+                  {% if item.notes %}
+                  <span class="text-muted"
+                    >{{ item.notes[:50] }}{% if item.notes|length > 50 %}...{%
+                    endif %}</span
+                  >
+                  {% endif %} {% if item.special_info %}
+                  <span class="text-warning">{{ item.special_info }}</span>
+                  {% endif %}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        {% else %}
+        <!-- 空状态 -->
+        <div class="text-center py-5">
+          <div class="mb-4">
+            <i
+              class="fas fa-shopping-cart fa-4x"
+              style="color: var(--ios-gray-4)"
+            ></i>
+          </div>
+          <h5 class="fw-bold mb-2">暂无商品信息</h5>
+          <p class="text-muted mb-4">
+            该小票还没有添加商品，您可以手动添加或使用AI重新识别
+          </p>
+          <div class="d-flex justify-content-center gap-2">
+            <button
+              class="btn btn-primary"
+              data-bs-toggle="modal"
+              data-bs-target="#addItemModal"
+            >
+              <i class="fas fa-plus me-2"></i>手动添加
+            </button>
+            <button
+              class="btn btn-outline-warning"
+              onclick="reprocessReceipt({{ receipt.id }})"
+            >
+              <i class="fas fa-robot me-2"></i>AI识别
+            </button>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑小票模态框 -->
+<div class="modal fade" id="editReceiptModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">编辑小票信息</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <form id="editReceiptForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">小票名称</label>
+            <input
+              type="text"
+              class="form-control"
+              name="name"
+              value="{{ receipt.name }}"
+              required
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">店铺名称</label>
+            <input
+              type="text"
+              class="form-control"
+              name="store_name"
+              value="{{ receipt.store_name or '' }}"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">店铺分类</label>
+            <input
+              type="text"
+              class="form-control"
+              name="store_category"
+              value="{{ receipt.store_category or '' }}"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">交易时间</label>
+            <input
+              type="datetime-local"
+              class="form-control"
+              name="transaction_time"
+              value="{{ receipt.transaction_time.strftime('%Y-%m-%dT%H:%M') if receipt.transaction_time else '' }}"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">文字描述</label>
+            <textarea
+              class="form-control"
+              name="text_description"
+              rows="4"
+              placeholder="小票内容的文字描述或商品信息"
+            >
+{{ receipt.text_description or '' }}</textarea
+            >
+            <div class="form-text">
+              如果小票图片不清晰，可以在这里添加文字描述
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">备注</label>
+            <textarea class="form-control" name="notes" rows="3">
+{{ receipt.notes or '' }}</textarea
+            >
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+          >
+            取消
+          </button>
+          <button type="submit" class="btn btn-primary">保存修改</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 添加商品模态框 -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">添加商品</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <form id="addItemForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">中文名称</label>
+            <input type="text" class="form-control" name="name_zh" required />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">日文名称</label>
+            <input type="text" class="form-control" name="name_ja" />
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">日元价格</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="form-control"
+                  name="price_jpy"
+                />
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">人民币价格</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="form-control"
+                  name="price_cny"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                name="is_special_offer"
+                id="isSpecialPrice"
+              />
+              <label class="form-check-label" for="isSpecialPrice"
+                >特价商品</label
+              >
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">特价信息</label>
+            <input
+              type="text"
+              class="form-control"
+              name="special_info"
+              placeholder="例如：8折优惠、买一送一等"
+            />
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">一级分类</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="category_1"
+                  placeholder="例如：食品"
+                />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">二级分类</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="category_2"
+                  placeholder="例如：零食"
+                />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">三级分类</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="category_3"
+                  placeholder="例如：饼干"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">备注</label>
+            <textarea
+              class="form-control"
+              name="notes"
+              rows="2"
+              placeholder="可选"
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+          >
+            取消
+          </button>
+          <button type="submit" class="btn btn-primary">添加商品</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑商品模态框 -->
+<div class="modal fade" id="editItemModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">编辑商品</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <form id="editItemForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">中文名称</label>
+            <input type="text" class="form-control" name="name_zh" required />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">日文名称</label>
+            <input type="text" class="form-control" name="name_ja" />
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">日元价格</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="form-control"
+                  name="price_jpy"
+                />
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">人民币价格</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="form-control"
+                  name="price_cny"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                name="is_special_offer"
+                id="editIsSpecialPrice"
+              />
+              <label class="form-check-label" for="editIsSpecialPrice"
+                >特价商品</label
+              >
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">特价信息</label>
+            <input
+              type="text"
+              class="form-control"
+              name="special_info"
+              placeholder="例如：8折优惠、买一送一等"
+            />
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">一级分类</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="category_1"
+                  placeholder="例如：食品"
+                />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">二级分类</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="category_2"
+                  placeholder="例如：零食"
+                />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">三级分类</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="category_3"
+                  placeholder="例如：饼干"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">备注</label>
+            <textarea
+              class="form-control"
+              name="notes"
+              rows="2"
+              placeholder="可选"
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+          >
+            取消
+          </button>
+          <button type="submit" class="btn btn-primary">保存修改</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 图片查看模态框 -->
+<div class="modal fade" id="imageModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalTitle">小票图片</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body text-center">
+        <img
+          id="modalImage"
+          class="img-fluid rounded"
+          alt="小票图片"
+          style="max-height: 70vh"
+        />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          关闭
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block extra_js %}
+<script>
+  // 折叠状态管理
+  $(document).ready(function() {
+    // 从本地存储获取折叠状态
+    const collapseStates = JSON.parse(localStorage.getItem('receiptDetailCollapseStates') || '{}');
+
+    // 初始化折叠状态
+    const sections = [
+      { id: 'imageCollapse', toggleBtn: 'imageToggleBtn', toggleIcon: 'imageToggleIcon', defaultState: false },
+      { id: 'infoCollapse', toggleBtn: 'infoToggleBtn', toggleIcon: 'infoToggleIcon', defaultState: true },
+      { id: 'summaryCollapse', toggleBtn: 'summaryToggleBtn', toggleIcon: 'summaryToggleIcon', defaultState: true }
+    ];
+
+    sections.forEach(section => {
+      const element = document.getElementById(section.id);
+      const toggleBtn = document.getElementById(section.toggleBtn);
+      const toggleIcon = document.getElementById(section.toggleIcon);
+
+      if (element && toggleBtn && toggleIcon) {
+        // 获取保存的状态，如果没有则使用默认状态
+        const savedState = collapseStates[section.id];
+        const shouldShow = savedState !== undefined ? savedState : section.defaultState;
+
+        // 设置初始状态
+        if (shouldShow) {
+          element.classList.add('show');
+          toggleBtn.setAttribute('aria-expanded', 'true');
+          toggleIcon.classList.remove('fa-chevron-down');
+          toggleIcon.classList.add('fa-chevron-up');
+        } else {
+          element.classList.remove('show');
+          toggleBtn.setAttribute('aria-expanded', 'false');
+          toggleIcon.classList.remove('fa-chevron-up');
+          toggleIcon.classList.add('fa-chevron-down');
+        }
+
+        // 监听折叠状态变化
+        element.addEventListener('show.bs.collapse', function() {
+          toggleIcon.classList.remove('fa-chevron-down');
+          toggleIcon.classList.add('fa-chevron-up');
+          // 保存状态到本地存储
+          const states = JSON.parse(localStorage.getItem('receiptDetailCollapseStates') || '{}');
+          states[section.id] = true;
+          localStorage.setItem('receiptDetailCollapseStates', JSON.stringify(states));
+        });
+
+        element.addEventListener('hide.bs.collapse', function() {
+          toggleIcon.classList.remove('fa-chevron-up');
+          toggleIcon.classList.add('fa-chevron-down');
+          // 保存状态到本地存储
+          const states = JSON.parse(localStorage.getItem('receiptDetailCollapseStates') || '{}');
+          states[section.id] = false;
+          localStorage.setItem('receiptDetailCollapseStates', JSON.stringify(states));
+        });
+      }
+    });
+  });
+
+  // 显示图片模态框
+  function showImageModal(imageSrc, title) {
+      $('#modalImage').attr('src', imageSrc);
+      $('#imageModalTitle').text(title + ' - 小票图片');
+      $('#imageModal').modal('show');
+  }
+
+  // 编辑小票信息
+  $('#editReceiptForm').on('submit', function(e) {
+      e.preventDefault();
+
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData.entries());
+
+      $.ajax({
+          url: '/api/receipts/{{ receipt.id }}',
+          type: 'PUT',
+          contentType: 'application/json',
+          data: JSON.stringify(data),
+          success: function(response) {
+              $('#editReceiptModal').modal('hide');
+              location.reload();
+          },
+          error: function(xhr) {
+              alert('保存失败: ' + (xhr.responseJSON?.message || '未知错误'));
+          }
+      });
+  });
+
+  // 添加商品
+  $('#addItemForm').on('submit', function(e) {
+      e.preventDefault();
+
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData.entries());
+      data.receipt_id = {{ receipt.id }};
+      data.is_special_offer = formData.has('is_special_offer');
+
+      $.ajax({
+          url: '/api/items',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify(data),
+          success: function(response) {
+              $('#addItemModal').modal('hide');
+              location.reload();
+          },
+          error: function(xhr) {
+              alert('添加失败: ' + (xhr.responseJSON?.message || '未知错误'));
+          }
+      });
+  });
+
+  // 编辑商品表单提交
+  $('#editItemForm').on('submit', function(e) {
+      e.preventDefault();
+
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData.entries());
+      data.is_special_offer = formData.has('is_special_offer');
+      const itemId = $('#editItemForm').data('item-id');
+
+      $.ajax({
+          url: `/api/items/${itemId}`,
+          type: 'PUT',
+          contentType: 'application/json',
+          data: JSON.stringify(data),
+          success: function(response) {
+              $('#editItemModal').modal('hide');
+              location.reload();
+          },
+          error: function(xhr) {
+              alert('保存失败: ' + (xhr.responseJSON?.message || '未知错误'));
+          }
+      });
+  });
+
+  // 重新识别小票
+  function reprocessReceipt(receiptId) {
+      if (confirm('确定要重新进行AI识别吗？\n\n注意：这将重新分析小票内容，可能会覆盖现有的商品信息和分类。建议在识别结果不理想时使用。')) {
+          // 显示加载状态
+          const btn = event.target.closest('button');
+          const originalContent = btn.innerHTML;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI识别中...';
+          btn.disabled = true;
+
+          $.ajax({
+              url: `/api/receipts/${receiptId}/reprocess`,
+              type: 'POST',
+              success: function(response) {
+                  // 开始状态监控
+                  startStatusMonitoring(receiptId, btn, originalContent);
+                  alert('AI识别已启动！系统将自动监控识别进度。');
+              },
+              error: function(xhr) {
+                  alert('AI识别启动失败: ' + (xhr.responseJSON?.message || '未知错误'));
+                  // 恢复按钮状态
+                  btn.innerHTML = originalContent;
+                  btn.disabled = false;
+              }
+          });
+      }
+  }
+
+  // 监控识别状态
+  function startStatusMonitoring(receiptId, btn, originalContent) {
+      let checkCount = 0;
+      const maxChecks = 30; // 最多检查30次（约1分钟）
+
+      function checkStatus() {
+          checkCount++;
+
+          $.ajax({
+              url: `/api/receipts/${receiptId}`,
+              type: 'GET',
+              success: function(data) {
+                  const status = data.status;
+
+                  if (status === '识别成功' || status === '识别失败') {
+                      // 识别完成
+                      if (status === '识别成功') {
+                          alert('AI识别完成！页面即将刷新显示最新结果。');
+                      } else {
+                          alert('AI识别失败，请检查小票图片质量或稍后重试。');
+                      }
+                      location.reload();
+                      return;
+                  }
+
+                  if (checkCount < maxChecks && (status === '待处理' || status === '正在识别')) {
+                      // 继续监控
+                      setTimeout(checkStatus, 2000); // 每2秒检查一次
+                  } else {
+                      // 超时或其他状态
+                      alert('AI识别处理时间较长，请稍后手动刷新页面查看结果。');
+                      btn.innerHTML = originalContent;
+                      btn.disabled = false;
+                  }
+              },
+              error: function() {
+                  // 检查失败，恢复按钮
+                  btn.innerHTML = originalContent;
+                  btn.disabled = false;
+              }
+          });
+      }
+
+      // 开始检查
+      setTimeout(checkStatus, 2000);
+  }
+
+  // 删除小票
+  function deleteReceipt(receiptId) {
+      if (confirm('确定要删除这张小票吗？此操作不可恢复！')) {
+          $.ajax({
+              url: `/api/receipts/${receiptId}`,
+              type: 'DELETE',
+              success: function(response) {
+                  alert('删除成功');
+                  window.location.href = '{{ url_for("frontend.receipt_list") }}';
+              },
+              error: function(xhr) {
+                  alert('删除失败: ' + (xhr.responseJSON?.message || '未知错误'));
+              }
+          });
+      }
+  }
+
+  // 编辑商品
+  function editItem(itemId) {
+      // 先获取商品数据
+      $.ajax({
+          url: `/api/items/${itemId}`,
+          type: 'GET',
+          success: function(item) {
+              // 填充表单数据
+              const form = $('#editItemForm');
+              form.data('item-id', itemId);
+
+              form.find('input[name="name_zh"]').val(item.name_zh || '');
+              form.find('input[name="name_ja"]').val(item.name_ja || '');
+              form.find('input[name="price_jpy"]').val(item.price_jpy || '');
+              form.find('input[name="price_cny"]').val(item.price_cny || '');
+              form.find('input[name="category_1"]').val(item.category_1 || '');
+              form.find('input[name="category_2"]').val(item.category_2 || '');
+              form.find('input[name="category_3"]').val(item.category_3 || '');
+              form.find('input[name="special_info"]').val(item.special_info || '');
+              form.find('textarea[name="notes"]').val(item.notes || '');
+              form.find('input[name="is_special_offer"]').prop('checked', item.is_special_offer || false);
+
+              // 显示模态框
+              $('#editItemModal').modal('show');
+          },
+          error: function(xhr) {
+              alert('获取商品信息失败: ' + (xhr.responseJSON?.message || '未知错误'));
+          }
+      });
+  }
+
+  // 删除商品
+  function deleteItem(itemId) {
+      if (confirm('确定要删除这个商品吗？')) {
+          $.ajax({
+              url: `/api/items/${itemId}`,
+              type: 'DELETE',
+              success: function(response) {
+                  location.reload();
+              },
+              error: function(xhr) {
+                  alert('删除失败: ' + (xhr.responseJSON?.message || '未知错误'));
+              }
+          });
+      }
+  }
+</script>
+{% endblock %}

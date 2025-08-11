@@ -1,0 +1,9 @@
+Flask
+Flask-SQLAlchemy
+Flask-RESTful
+Flask-Marshmallow
+marshmallow-sqlalchemy
+openai
+python-dotenv
+Werkzeug
+Pillow

@@ -1,0 +1,755 @@
+{% extends "base.html" %}
+
+{% block title %}小票列表 - 仓鼠记账{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="page-title"><i class="fas fa-receipt me-3"></i>小票管理</h1>
+    <p class="page-subtitle">管理您的购物小票，智能识别商品信息</p>
+    
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <span class="badge bg-primary me-2">总计 {{ pagination.total }} 张小票</span>
+        </div>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <i class="fas fa-plus me-2"></i>上传小票
+        </button>
+    </div>
+</div>
+
+<!-- 搜索和筛选区域 -->
+<div class="filter-section">
+    <div class="filter-header">
+        <button class="filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" 
+                aria-expanded="false" aria-controls="filterCollapse">
+            <i class="fas fa-filter"></i>
+            <span>筛选条件</span>
+            <i class="fas fa-chevron-down" id="filterToggleIcon"></i>
+        </button>
+    </div>
+    
+    <div class="collapse" id="filterCollapse">
+        <div class="filter-body">
+            <form id="filterForm" method="GET">
+                <div class="row g-3">
+                    <!-- 搜索框 -->
+                    <div class="col-md-6 filter-form-group">
+                        <label class="filter-label">搜索内容</label>
+                        <div class="filter-input-group input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" name="search" value="{{ request.args.get('search', '') }}" 
+                                   placeholder="搜索小票名称、店铺、备注...">
+                        </div>
+                    </div>
+                    
+                    <!-- 状态筛选 -->
+                    <div class="col-md-2 filter-form-group">
+                        <label class="filter-label">状态</label>
+                        <select class="form-select" name="status">
+                            <option value="">全部状态</option>
+                            <option value="待处理" {{ 'selected' if request.args.get('status') == '待处理' }}>待处理</option>
+                            <option value="正在识别" {{ 'selected' if request.args.get('status') == '正在识别' }}>正在识别</option>
+                            <option value="识别失败" {{ 'selected' if request.args.get('status') == '识别失败' }}>识别失败</option>
+                            <option value="识别成功" {{ 'selected' if request.args.get('status') == '识别成功' }}>识别成功</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 排序方式 -->
+                    <div class="col-md-2 filter-form-group">
+                        <label class="filter-label">排序字段</label>
+                        <select class="form-select" name="sort_by">
+                            <option value="created_at" {{ 'selected' if request.args.get('sort_by', 'created_at') == 'created_at' }}>上传时间</option>
+                            <option value="transaction_time" {{ 'selected' if request.args.get('sort_by') == 'transaction_time' }}>交易时间</option>
+                            <option value="updated_at" {{ 'selected' if request.args.get('sort_by') == 'updated_at' }}>修改时间</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 排序方向 -->
+                    <div class="col-md-2 filter-form-group">
+                        <label class="filter-label">排序方向</label>
+                        <select class="form-select" name="order">
+                            <option value="desc" {{ 'selected' if request.args.get('order', 'desc') == 'desc' }}>降序 (新→旧)</option>
+                            <option value="asc" {{ 'selected' if request.args.get('order') == 'asc' }}>升序 (旧→新)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="filter-actions">
+                    <button type="submit" class="filter-btn-primary">
+                        <i class="fas fa-search me-2"></i>应用筛选
+                    </button>
+                    <button type="button" class="filter-btn-secondary" onclick="clearFilters()">
+                        <i class="fas fa-times me-2"></i>清除全部
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 小票列表 -->
+{% if receipts %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-receipt me-2"></i>小票列表
+            <span class="badge bg-primary ms-2">{{ pagination.total }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- 紧凑型小票列表 -->
+        <div class="row g-2" id="receiptGrid">
+            {% for receipt in receipts %}
+            <div class="col-12">
+                <div class="item-compact receipt-item-compact">
+                    <!-- 小票主要信息行 -->
+                    <div class="item-name-compact">
+                        <span class="receipt-title">{{ receipt.name }}</span>
+                        {% if receipt.store_name %}
+                        <span class="text-muted ms-2 small">{{ receipt.store_name }}</span>
+                        {% endif %}
+                        <span class="badge bg-{{ 'success' if receipt.status.value == '识别成功' 
+                                              else 'warning' if receipt.status.value in ['待处理', '正在识别'] 
+                                              else 'danger' }} ms-2">
+                            {{ receipt.status.value }}
+                        </span>
+                    
+                    <!-- 详细信息和操作行 -->
+                    <div class="item-details-compact">
+                        <div class="item-price-compact">
+                            <span class="stat-item">
+                                <i class="fas fa-shopping-cart me-1"></i>{{ receipt.items|length }}
+                            </span>
+                            {% set total_yen = receipt.items|map(attribute='price_jpy')|select|sum %}
+                            {% set total_rmb = receipt.items|map(attribute='price_cny')|select|sum %}
+                            {% if total_yen and total_yen > 0 %}
+                            <span class="stat-item text-info">
+                                <i class="fas fa-yen-sign me-1"></i>{{ "%.0f"|format(total_yen) }}
+                            </span>
+                            {% endif %}
+                            {% if total_rmb and total_rmb > 0 %}
+                            <span class="stat-item text-success">
+                                <i class="fas fa-rmb me-1"></i>{{ "%.2f"|format(total_rmb) }}
+                            </span>
+                            {% endif %}
+                            <span class="stat-item">
+                                {% if receipt.image_filename %}
+                                <i class="fas fa-image text-success me-1"></i>
+                                {% else %}
+                                <i class="fas fa-file-text text-muted me-1"></i>
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('frontend.receipt_detail', receipt_id=receipt.id) }}" 
+                               class="btn btn-outline-primary" title="查看详情">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <button class="btn btn-outline-warning" 
+                                    onclick="reprocessReceipt({{ receipt.id }})" title="重新识别">
+                                <i class="fas fa-robot"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" 
+                                    onclick="deleteReceipt({{ receipt.id }})" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 备注和附加信息行 -->
+                    <div class="receipt-meta-compact">
+                        {% if receipt.notes %}
+                        <div class="receipt-notes-compact text-muted">
+                            <i class="fas fa-comment me-1"></i>{{ receipt.notes[:30] }}{% if receipt.notes|length > 30 %}...{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- 时间信息行 -->
+                    <div class="receipt-source-compact">
+                        <div class="small text-muted">
+                            <i class="fas fa-clock me-1"></i>{{ receipt.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% if receipt.transaction_time %}
+                            <span class="mx-1">•</span>
+                            <i class="fas fa-calendar me-1"></i>交易：{{ receipt.transaction_time.strftime('%m-%d %H:%M') }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+<!-- 加载更多按钮（桌面端点击，移动端自动） -->
+<div id="loadMoreContainer" class="text-center mt-4" style="display: none;">
+    {% if pagination.page < pagination.pages %}
+    <button id="loadMoreBtn" class="btn btn-outline-primary d-none d-md-block" 
+            data-next-page="{{ pagination.page + 1 }}"
+            data-total-pages="{{ pagination.pages }}"
+            data-search="{{ request.args.get('search', '') }}"
+            data-status="{{ request.args.get('status', '') }}"
+            data-sort-by="{{ request.args.get('sort_by', 'created_at') }}"
+            data-order="{{ request.args.get('order', 'desc') }}">
+        <i class="fas fa-chevron-down me-1"></i> 点击加载更多
+    </button>
+    {% endif %}
+    <div id="loadingIndicator" class="mt-3" style="display: none;">
+        <div class="spinner-border spinner-border-sm text-primary" role="status">
+            <span class="visually-hidden">加载中...</span>
+        </div>
+        <span class="ms-2 text-muted">正在加载...</span>
+    </div>
+</div>
+
+<!-- 分页（桌面端） -->
+{% if pagination.pages > 1 %}
+<div class="d-flex justify-content-center mt-4">
+    <nav aria-label="小票列表分页" id="paginationNav">
+        <ul class="pagination">
+            {% if pagination.page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('frontend.receipt_list', 
+                    page=pagination.page-1, 
+                    search=request.args.get('search', ''),
+                    status=request.args.get('status', ''),
+                    sort_by=request.args.get('sort_by', 'created_at'),
+                    order=request.args.get('order', 'desc')) }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for page_num in range(1, pagination.pages + 1) %}
+                {% if page_num == pagination.page %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% elif page_num <= 3 or page_num > pagination.pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('frontend.receipt_list', 
+                        page=page_num,
+                        search=request.args.get('search', ''),
+                        status=request.args.get('status', ''),
+                        sort_by=request.args.get('sort_by', 'created_at'),
+                        order=request.args.get('order', 'desc')) }}">{{ page_num }}</a>
+                </li>
+                {% elif page_num == 4 or page_num == pagination.pages - 3 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if pagination.page < pagination.pages %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('frontend.receipt_list', 
+                    page=pagination.page+1,
+                    search=request.args.get('search', ''),
+                    status=request.args.get('status', ''),
+                    sort_by=request.args.get('sort_by', 'created_at'),
+                    order=request.args.get('order', 'desc')) }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
+    </div>
+</div>
+
+<!-- 空状态提示 -->
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="text-center py-5" style="margin-top: 3rem;">
+            <div class="mb-4">
+                <i class="fas fa-receipt fa-4x" style="color: var(--ios-gray-4);"></i>
+            </div>
+            <h4 class="fw-bold mb-2">还没有小票</h4>
+            <p class="text-muted mb-4">点击上方按钮开始上传您的第一张小票吧！</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fas fa-plus me-2"></i>立即上传
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- iOS风格的上传小票模态框 -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius: 16px; border: none;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--ios-gray-2); border-radius: 16px 16px 0 0;">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-plus-circle me-2 text-primary"></i>上传新小票
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="modal-body" style="padding: 2rem;">
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">小票名称</label>
+                        <input type="text" class="form-control" name="name" placeholder="可选，留空将自动生成">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">上传图片</label>
+                        <div class="upload-area" style="border: 2px dashed var(--ios-gray-3); border-radius: 12px; padding: 2rem; text-align: center; background-color: var(--ios-gray-1);">
+                            <input type="file" class="form-control" name="image" accept="image/*" id="imageInput" style="display: none;">
+                            <div id="uploadPlaceholder">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <p class="text-muted mb-2">点击此处选择图片</p>
+                                <p class="small text-muted">支持 JPG、PNG 等图片格式</p>
+                            </div>
+                            <div id="imagePreview" style="display: none;">
+                                <img id="previewImg" style="max-width: 100%; max-height: 200px; border-radius: 8px;">
+                                <p class="mt-2 mb-0"><button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearImage()">重新选择</button></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">文字描述</label>
+                        <textarea class="form-control" name="text_description" rows="4" 
+                                  placeholder="或者直接输入小票内容的文字描述"></textarea>
+                        <div class="form-text">如果没有图片，可以直接输入购买的商品信息</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">备注</label>
+                        <input type="text" class="form-control" name="notes" placeholder="可选">
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--ios-gray-2); border-radius: 0 0 16px 16px;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>上传小票
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 清除筛选条件
+function clearFilters() {
+    // 先折叠筛选区域
+    const filterCollapse = document.getElementById('filterCollapse');
+    if (filterCollapse) {
+        const collapse = bootstrap.Collapse.getInstance(filterCollapse);
+        if (collapse) {
+            collapse.hide();
+        }
+    }
+    
+    // 延迟跳转，让用户看到折叠动画
+    setTimeout(() => {
+        window.location.href = '{{ url_for("frontend.receipt_list") }}';
+    }, 300);
+}
+
+// 图片上传交互
+$(document).ready(function() {
+    $('.upload-area').on('click', function() {
+        $('#imageInput').click();
+    });
+    
+    $('#imageInput').on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#previewImg').attr('src', e.target.result);
+                $('#uploadPlaceholder').hide();
+                $('#imagePreview').show();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+});
+
+function clearImage() {
+    $('#imageInput').val('');
+    $('#uploadPlaceholder').show();
+    $('#imagePreview').hide();
+}
+
+// 上传小票
+$('#uploadForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalText = submitBtn.html();
+    
+    // 简单验证
+    const image = formData.get('image');
+    const textDescription = formData.get('text_description');
+    if (!image.name && !textDescription.trim()) {
+        showToast('请上传图片或输入文字描述', 'warning');
+        return;
+    }
+    
+    submitBtn.html('<i class="fas fa-spinner fa-spin me-2"></i>上传中...');
+    submitBtn.prop('disabled', true);
+    
+    $.ajax({
+        url: '/api/receipts',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            $('#uploadModal').modal('hide');
+            showToast('小票上传成功！正在AI识别中...', 'success');
+            setTimeout(() => location.reload(), 1500);
+        },
+        error: function(xhr) {
+            showToast('上传失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+        },
+        complete: function() {
+            submitBtn.html(originalText);
+            submitBtn.prop('disabled', false);
+        }
+    });
+});
+
+// 重新识别小票
+function reprocessReceipt(receiptId) {
+    if (confirm('确定要重新进行AI识别吗？\n这将重新分析小票内容并可能覆盖现有的商品信息。')) {
+        const btn = event.target.closest('button');
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+        
+        $.ajax({
+            url: `/api/receipts/${receiptId}/reprocess`,
+            type: 'POST',
+            success: function(response) {
+                showToast('AI识别已启动！页面将在3秒后自动刷新', 'success');
+                setTimeout(() => location.reload(), 3000);
+            },
+            error: function(xhr) {
+                showToast('AI识别启动失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
+        });
+    }
+}
+
+// 删除小票
+function deleteReceipt(receiptId) {
+    if (confirm('确定要删除这张小票吗？\n此操作不可恢复！')) {
+        const btn = event.target.closest('button');
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+        
+        $.ajax({
+            url: `/api/receipts/${receiptId}`,
+            type: 'DELETE',
+            success: function(response) {
+                showToast('小票删除成功', 'success');
+                setTimeout(() => location.reload(), 1000);
+            },
+            error: function(xhr) {
+                showToast('删除失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
+        });
+    }
+}
+
+// 清除筛选条件
+function clearFilters() {
+    window.location.href = "{{ url_for('frontend.receipt_list') }}";
+}
+
+// 自动提交表单当筛选条件改变
+$('#filterForm select, #filterForm input').on('change input', function() {
+    // 延迟提交以给用户时间看到变化
+    clearTimeout(window.filterSubmitTimeout);
+    window.filterSubmitTimeout = setTimeout(() => {
+        $('#filterForm').submit();
+    }, 300);
+});
+
+// 移动端滚动加载更多功能
+document.addEventListener('DOMContentLoaded', function() {
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const receiptsGrid = document.getElementById('receiptGrid');
+    let isLoading = false; // 防止重复加载
+    
+    // 检测移动端
+    function isMobile() {
+        return window.innerWidth <= 768;
+    }
+    
+    // 加载更多数据的函数
+    function loadMoreData() {
+        if (isLoading || !loadMoreBtn || !loadMoreBtn.dataset.nextPage) return;
+        
+        isLoading = true;
+        const receiptsGrid = document.getElementById('receiptGrid');
+        const nextPage = loadMoreBtn.dataset.nextPage;
+        const totalPages = loadMoreBtn.dataset.totalPages;
+        const search = loadMoreBtn.dataset.search || '';
+        const status = loadMoreBtn.dataset.status || '';
+        const sortBy = loadMoreBtn.dataset.sortBy || 'created_at';
+        const order = loadMoreBtn.dataset.order || 'desc';
+        
+        // 显示加载动画
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'block';
+            loadingIndicator.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">加载中...</span></div><span class="ms-2 text-muted">正在加载...</span>';
+        }
+        
+        // 构建请求URL
+        const params = new URLSearchParams({
+            page: nextPage,
+            search: search,
+            status: status,
+            sort_by: sortBy,
+            order: order
+        });
+        
+        // 请求新页面数据
+        fetch(`{{ url_for('frontend.receipt_list') }}?${params.toString()}`)
+            .then(response => response.text())
+            .then(html => {
+                // 解析HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // 提取新的小票卡片
+                const newCards = doc.querySelectorAll('#receiptGrid .col-12');
+                
+                // 添加到当前网格
+                newCards.forEach((card, index) => {
+                    // 为新添加的项目设置初始状态
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                    card.style.transitionDelay = `${index * 0.1}s`;
+                    
+                    receiptsGrid.appendChild(card);
+                    
+                    // 触发动画
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 50);
+                });
+                
+                // 更新状态
+                const currentPage = parseInt(nextPage);
+                if (currentPage < parseInt(totalPages)) {
+                    loadMoreBtn.dataset.nextPage = currentPage + 1;
+                } else {
+                    // 没有更多页面了
+                    loadMoreBtn.remove(); // 移除按钮
+                    if (loadingIndicator) {
+                        loadingIndicator.innerHTML = '<span class="text-muted"><i class="fas fa-check-circle me-1"></i>所有数据已加载完毕</span>';
+                        setTimeout(() => {
+                            loadingIndicator.style.display = 'none';
+                        }, 2000);
+                    }
+                    return;
+                }
+                
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+                isLoading = false;
+            })
+            .catch(error => {
+                console.error('加载失败:', error);
+                if (loadingIndicator) {
+                    loadingIndicator.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>加载失败，请重试</span>';
+                    setTimeout(() => {
+                        loadingIndicator.style.display = 'none';
+                    }, 3000);
+                }
+                isLoading = false;
+            });
+    }
+    
+    // 滚动到底部检测
+    function isNearBottom() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        // 当距离底部小于100px时触发加载
+        return scrollTop + windowHeight >= documentHeight - 100;
+    }
+    
+    // 滚动事件监听（仅在移动端）
+    let scrollTimeout;
+    function handleScroll() {
+        if (!isMobile()) return;
+        
+        // 防抖处理
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            if (isNearBottom() && !isLoading) {
+                loadMoreData();
+            }
+        }, 100);
+    }
+    
+    // 按钮点击事件（桌面端备用）
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', function() {
+            loadMoreData();
+        });
+    }
+    
+    // 监听滚动事件
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    // 筛选折叠/展开图标切换
+    const filterCollapse = document.getElementById('filterCollapse');
+    const toggleIcon = document.getElementById('filterToggleIcon');
+    const toggleBtn = document.querySelector('.filter-toggle-btn');
+    
+    if (filterCollapse && toggleIcon) {
+        filterCollapse.addEventListener('show.bs.collapse', function() {
+            toggleIcon.style.transform = 'rotate(180deg)';
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', 'true');
+            }
+        });
+        
+        filterCollapse.addEventListener('hide.bs.collapse', function() {
+            toggleIcon.style.transform = 'rotate(0deg)';
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+        
+        // 检查是否有筛选条件
+        function hasActiveFilters() {
+            const searchParam = '{{ request.args.get("search", "") }}';
+            const statusParam = '{{ request.args.get("status", "") }}';
+            const sortByParam = '{{ request.args.get("sort_by", "created_at") }}';
+            const orderParam = '{{ request.args.get("order", "desc") }}';
+            
+            return searchParam !== '' || 
+                   statusParam !== '' || 
+                   sortByParam !== 'created_at' || 
+                   orderParam === 'asc';
+        }
+        
+        // 如果有筛选条件，自动展开
+        if (hasActiveFilters()) {
+            const collapse = new bootstrap.Collapse(filterCollapse, { show: true });
+        }
+    }
+
+    // 为小票列表项添加进入动画
+    const receiptObserverOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const receiptObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+                receiptObserver.unobserve(entry.target);
+            }
+        });
+    }, receiptObserverOptions);
+    
+    // 为现有小票项添加动画
+    document.querySelectorAll('.receipt-compact').forEach((receipt, index) => {
+        receipt.style.opacity = '0';
+        receipt.style.transform = 'translateY(20px)';
+        receipt.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        receipt.style.transitionDelay = `${index * 0.1}s`;
+        
+        receiptObserver.observe(receipt);
+    });
+
+    // 智能搜索防抖
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            // 防抖延迟
+            searchTimeout = setTimeout(() => {
+                if (query.length >= 2 || query.length === 0) {
+                    // 自动提交表单
+                    this.closest('form').submit();
+                }
+            }, 800);
+        });
+    }
+
+    // 状态快速筛选
+    document.querySelectorAll('.status-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const status = this.dataset.status;
+            const form = document.getElementById('filterForm');
+            if (form) {
+                const statusSelect = form.querySelector('select[name="status"]');
+                if (statusSelect) {
+                    statusSelect.value = status;
+                    form.submit();
+                }
+            }
+        });
+    });
+
+    // 小票卡片悬停效果增强
+    document.querySelectorAll('.receipt-compact').forEach(card => {
+        // 添加基础过渡效果
+        card.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px) scale(1.01)';
+            this.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.12)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+            this.style.boxShadow = '';
+        });
+    });
+
+    // 上传按钮增强
+    const uploadBtn = document.querySelector('[data-bs-target="#uploadModal"]');
+    if (uploadBtn) {
+        uploadBtn.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        
+        uploadBtn.addEventListener('mousedown', function() {
+            this.style.transform = 'scale(0.95)';
+        });
+        
+        uploadBtn.addEventListener('mouseup', function() {
+            this.style.transform = 'scale(1)';
+        });
+        
+        uploadBtn.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+    }
+});
+</script>
+{% endblock %}
