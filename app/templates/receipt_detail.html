@@ -1,11 +1,11 @@
 {% extends "base.html" %} {% block title %}小票详情 - {{ receipt.name }} -
 仓鼠记账{% endblock %} {% block content %}
 <!-- 面包屑导航 -->
-<nav aria-label="breadcrumb" class="mb-3">
+<nav aria-label="breadcrumb" class="mb-4">
   <ol class="breadcrumb">
     <li class="breadcrumb-item">
       <a href="{{ url_for('frontend.receipt_list') }}">
-        <i class="fas fa-arrow-left me-1"></i>小票列表
+        <i class="fas fa-arrow-left me-2"></i>小票列表
       </a>
     </li>
     <li class="breadcrumb-item active">{{ receipt.name }}</li>
@@ -13,50 +13,56 @@
 </nav>
 
 <!-- 页面标题和操作 -->
-<div class="d-flex justify-content-between align-items-start mb-3">
+<div class="d-flex justify-content-between align-items-start mb-4">
   <div class="flex-grow-1">
-    <h1 class="page-title mb-1">
-      <i class="fas fa-receipt me-2"></i>{{ receipt.name }}
+    <h1 class="page-title mb-2">
+      <i class="fas fa-receipt me-3"></i>{{ receipt.name }}
     </h1>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
       <span
         class="badge bg-{{ 'success' if receipt.status.value == '识别成功' 
                             else 'warning' if receipt.status.value in ['待处理', '正在识别'] 
-                            else 'danger' }}"
+                            else 'danger' }} animate-in"
       >
+        <i class="fas fa-{{ 'check-circle' if receipt.status.value == '识别成功'
+                             else 'clock' if receipt.status.value in ['待处理', '正在识别']
+                             else 'exclamation-triangle' }} me-1"></i>
         {{ receipt.status.value }}
       </span>
       {% if receipt.store_name %}
-      <span class="text-muted small">{{ receipt.store_name }}</span>
-      {% endif %} {% if receipt.items|length > 0 %}
-      <span class="badge bg-primary ms-1"
-        >{{ receipt.items|length }} 个商品</span
-      >
+      <span class="text-muted d-flex align-items-center">
+        <i class="fas fa-store me-1"></i>{{ receipt.store_name }}
+      </span>
+      {% endif %} 
+      {% if receipt.items|length > 0 %}
+      <span class="badge bg-primary animate-in" style="animation-delay: 0.1s;">
+        <i class="fas fa-shopping-cart me-1"></i>{{ receipt.items|length }} 个商品
+      </span>
       {% endif %}
     </div>
   </div>
-  <div class="d-flex gap-1 flex-shrink-0">
+  <div class="d-flex gap-2 flex-shrink-0">
     <button
       class="btn btn-sm btn-primary"
       data-bs-toggle="modal"
       data-bs-target="#editReceiptModal"
       title="编辑小票"
     >
-      <i class="fas fa-edit"></i>
+      <i class="fas fa-edit me-1"></i><span class="d-none d-md-inline">编辑</span>
     </button>
     <button
       class="btn btn-sm btn-warning"
       onclick="reprocessReceipt({{ receipt.id }})"
       title="重新识别"
     >
-      <i class="fas fa-robot"></i>
+      <i class="fas fa-robot me-1"></i><span class="d-none d-md-inline">重新识别</span>
     </button>
     <button
       class="btn btn-sm btn-danger"
       onclick="deleteReceipt({{ receipt.id }})"
       title="删除小票"
     >
-      <i class="fas fa-trash"></i>
+      <i class="fas fa-trash me-1"></i><span class="d-none d-md-inline">删除</span>
     </button>
   </div>
 </div>
@@ -280,9 +286,9 @@
       <div
         class="card-header d-flex justify-content-between align-items-center"
       >
-        <h5 class="mb-0">
-          <i class="fas fa-shopping-cart me-2"></i>商品列表
-          <span class="badge bg-primary ms-2">{{ receipt.items|length }}</span>
+        <h5 class="mb-0 d-flex align-items-center">
+          <i class="fas fa-shopping-cart me-2 text-primary"></i>商品列表
+          <span class="badge bg-primary ms-2 animate-in">{{ receipt.items|length }}</span>
         </h5>
         <button
           class="btn btn-success"
@@ -295,16 +301,22 @@
       <div class="card-body">
         {% if receipt.items %}
         <!-- 紧凑型商品卡片列表 -->
-        <div class="row g-2">
+        <div class="row g-3">
           {% for item in receipt.items %}
           <div class="col-12">
-            <div class="item-compact">
-              <!-- 商品主要信息 -->
+            <div class="item-compact animate-in" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+              <!-- 商品名称行 -->
               <div class="item-name-compact">
-                {% if item.name_zh %} {{ item.name_zh }} {% else %} {{
-                item.name_ja or '未命名商品' }} {% endif %} {% if item.name_ja
-                and item.name_zh %}
-                <span class="text-muted small ms-2">{{ item.name_ja }}</span>
+                {% if item.name_zh %} 
+                {{ item.name_zh }} 
+                {% else %} 
+                {{ item.name_ja or '未命名商品' }} 
+                {% endif %} 
+                {% if item.name_ja and item.name_zh %}
+                <span class="text-muted small">{{ item.name_ja }}</span>
+                {% endif %}
+                {% if item.is_special_offer %}
+                <span class="badge bg-warning">特价</span>
                 {% endif %}
               </div>
 
@@ -312,17 +324,13 @@
               <div class="item-details-compact">
                 <div class="item-price-compact">
                   {% if item.price_jpy %}
-                  <span class="price-jpy fw-bold"
-                    >¥{{ "%.0f"|format(item.price_jpy) }}</span
-                  >
-                  {% endif %} {% if item.price_cny %}
-                  <span class="price-cny text-muted"
-                    >￥{{ "%.2f"|format(item.price_cny) }}</span
-                  >
-                  {% endif %} {% if not item.price_jpy and not item.price_cny %}
+                  <span class="price-jpy">¥{{ "%.0f"|format(item.price_jpy) }}</span>
+                  {% endif %} 
+                  {% if item.price_cny %}
+                  <span class="price-cny">￥{{ "%.2f"|format(item.price_cny) }}</span>
+                  {% endif %} 
+                  {% if not item.price_jpy and not item.price_cny %}
                   <span class="text-muted">价格待定</span>
-                  {% endif %} {% if item.is_special_offer %}
-                  <span class="badge bg-warning ms-1">特价</span>
                   {% endif %}
                 </div>
 
@@ -350,9 +358,11 @@
                 <div class="item-categories-compact">
                   {% if item.category_1 %}
                   <span class="badge bg-primary">{{ item.category_1 }}</span>
-                  {% endif %} {% if item.category_2 %}
+                  {% endif %} 
+                  {% if item.category_2 %}
                   <span class="badge bg-info">{{ item.category_2 }}</span>
-                  {% endif %} {% if item.category_3 %}
+                  {% endif %} 
+                  {% if item.category_3 %}
                   <span class="badge bg-success">{{ item.category_3 }}</span>
                   {% endif %}
                 </div>
@@ -360,11 +370,11 @@
                 {% if item.notes or item.special_info %}
                 <div class="item-notes-compact">
                   {% if item.notes %}
-                  <span class="text-muted"
-                    >{{ item.notes[:50] }}{% if item.notes|length > 50 %}...{%
-                    endif %}</span
-                  >
-                  {% endif %} {% if item.special_info %}
+                  <i class="fas fa-comment me-1"></i>
+                  <span class="text-muted">{{ item.notes[:50] }}{% if item.notes|length > 50 %}...{% endif %}</span>
+                  {% endif %} 
+                  {% if item.special_info %}
+                  <i class="fas fa-star me-1"></i>
                   <span class="text-warning">{{ item.special_info }}</span>
                   {% endif %}
                 </div>
@@ -376,28 +386,28 @@
         </div>
 
         {% else %}
-        <!-- 空状态 -->
+        <!-- 空状态 - 优化设计 -->
         <div class="text-center py-5">
           <div class="mb-4">
-            <i
-              class="fas fa-shopping-cart fa-4x"
-              style="color: var(--ios-gray-4)"
-            ></i>
+            <div class="empty-state-icon">
+              <i class="fas fa-shopping-cart fa-4x text-primary opacity-50"></i>
+            </div>
           </div>
-          <h5 class="fw-bold mb-2">暂无商品信息</h5>
-          <p class="text-muted mb-4">
-            该小票还没有添加商品，您可以手动添加或使用AI重新识别
+          <h5 class="fw-bold mb-3 text-primary">暂无商品信息</h5>
+          <p class="text-muted mb-4 px-3">
+            <i class="fas fa-info-circle me-2"></i>该小票还没有添加商品，您可以手动添加或使用AI重新识别
           </p>
-          <div class="d-flex justify-content-center gap-2">
+          <div class="d-flex justify-content-center gap-3 flex-wrap">
             <button
-              class="btn btn-primary"
+              class="btn btn-primary animate-in"
               data-bs-toggle="modal"
               data-bs-target="#addItemModal"
             >
               <i class="fas fa-plus me-2"></i>手动添加
             </button>
             <button
-              class="btn btn-outline-warning"
+              class="btn btn-outline-warning animate-in"
+              style="animation-delay: 0.1s;"
               onclick="reprocessReceipt({{ receipt.id }})"
             >
               <i class="fas fa-robot me-2"></i>AI识别
@@ -770,307 +780,476 @@
   </div>
 </div>
 
-<!-- 图片查看模态框 -->
-<div class="modal fade" id="imageModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="imageModalTitle">小票图片</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-        ></button>
-      </div>
-      <div class="modal-body text-center">
-        <img
-          id="modalImage"
-          class="img-fluid rounded"
-          alt="小票图片"
-          style="max-height: 70vh"
-        />
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          关闭
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
 {% endblock %} {% block extra_js %}
 <script>
-  // 折叠状态管理
-  $(document).ready(function() {
+// 页面初始化
+$(document).ready(function() {
+    // 为商品卡片添加进入动画
+    $('.item-compact').each(function(index) {
+        $(this).css({
+            'animation-delay': (index * 0.1) + 's',
+            'animation-fill-mode': 'both'
+        }).addClass('animate-in');
+    });
+    
+    // 为信息卡片添加悬停效果
+    $('.info-item-compact').hover(
+        function() {
+            $(this).find('.info-label-compact').css('color', 'var(--ios-blue)');
+        },
+        function() {
+            $(this).find('.info-label-compact').css('color', 'var(--ios-gray-6)');
+        }
+    );
+    
+    // 为商品卡片添加交互反馈
+    $('.item-compact').on('mousedown', function() {
+        $(this).addClass('card-pressed');
+    }).on('mouseup mouseleave', function() {
+        $(this).removeClass('card-pressed');
+    });
+    
+    // 初始化徽章动画
+    $('.badge').addClass('animate-in');
+});
+
+// 折叠状态管理 - 优化版
+    
     // 从本地存储获取折叠状态
     const collapseStates = JSON.parse(localStorage.getItem('receiptDetailCollapseStates') || '{}');
 
     // 初始化折叠状态
     const sections = [
-      { id: 'imageCollapse', toggleBtn: 'imageToggleBtn', toggleIcon: 'imageToggleIcon', defaultState: false },
-      { id: 'infoCollapse', toggleBtn: 'infoToggleBtn', toggleIcon: 'infoToggleIcon', defaultState: true },
-      { id: 'summaryCollapse', toggleBtn: 'summaryToggleBtn', toggleIcon: 'summaryToggleIcon', defaultState: true }
+        { id: 'imageCollapse', toggleBtn: 'imageToggleBtn', toggleIcon: 'imageToggleIcon', defaultState: false },
+        { id: 'infoCollapse', toggleBtn: 'infoToggleBtn', toggleIcon: 'infoToggleIcon', defaultState: true },
+        { id: 'summaryCollapse', toggleBtn: 'summaryToggleBtn', toggleIcon: 'summaryToggleIcon', defaultState: true }
     ];
 
     sections.forEach(section => {
-      const element = document.getElementById(section.id);
-      const toggleBtn = document.getElementById(section.toggleBtn);
-      const toggleIcon = document.getElementById(section.toggleIcon);
+        const element = document.getElementById(section.id);
+        const toggleBtn = document.getElementById(section.toggleBtn);
+        const toggleIcon = document.getElementById(section.toggleIcon);
 
-      if (element && toggleBtn && toggleIcon) {
-        // 获取保存的状态，如果没有则使用默认状态
-        const savedState = collapseStates[section.id];
-        const shouldShow = savedState !== undefined ? savedState : section.defaultState;
+        if (element && toggleBtn && toggleIcon) {
+            // 获取保存的状态，如果没有则使用默认状态
+            const savedState = collapseStates[section.id];
+            const shouldShow = savedState !== undefined ? savedState : section.defaultState;
 
-        // 设置初始状态
-        if (shouldShow) {
-          element.classList.add('show');
-          toggleBtn.setAttribute('aria-expanded', 'true');
-          toggleIcon.classList.remove('fa-chevron-down');
-          toggleIcon.classList.add('fa-chevron-up');
-        } else {
-          element.classList.remove('show');
-          toggleBtn.setAttribute('aria-expanded', 'false');
-          toggleIcon.classList.remove('fa-chevron-up');
-          toggleIcon.classList.add('fa-chevron-down');
+            // 设置初始状态
+            if (shouldShow) {
+                element.classList.add('show');
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                toggleIcon.classList.remove('fa-chevron-down');
+                toggleIcon.classList.add('fa-chevron-up');
+            } else {
+                element.classList.remove('show');
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                toggleIcon.classList.remove('fa-chevron-up');
+                toggleIcon.classList.add('fa-chevron-down');
+            }
+
+            // 监听折叠状态变化
+            element.addEventListener('show.bs.collapse', function() {
+                toggleIcon.classList.remove('fa-chevron-down');
+                toggleIcon.classList.add('fa-chevron-up');
+                const states = JSON.parse(localStorage.getItem('receiptDetailCollapseStates') || '{}');
+                states[section.id] = true;
+                localStorage.setItem('receiptDetailCollapseStates', JSON.stringify(states));
+            });
+
+            element.addEventListener('hide.bs.collapse', function() {
+                toggleIcon.classList.remove('fa-chevron-up');
+                toggleIcon.classList.add('fa-chevron-down');
+                const states = JSON.parse(localStorage.getItem('receiptDetailCollapseStates') || '{}');
+                states[section.id] = false;
+                localStorage.setItem('receiptDetailCollapseStates', JSON.stringify(states));
+            });
         }
-
-        // 监听折叠状态变化
-        element.addEventListener('show.bs.collapse', function() {
-          toggleIcon.classList.remove('fa-chevron-down');
-          toggleIcon.classList.add('fa-chevron-up');
-          // 保存状态到本地存储
-          const states = JSON.parse(localStorage.getItem('receiptDetailCollapseStates') || '{}');
-          states[section.id] = true;
-          localStorage.setItem('receiptDetailCollapseStates', JSON.stringify(states));
-        });
-
-        element.addEventListener('hide.bs.collapse', function() {
-          toggleIcon.classList.remove('fa-chevron-up');
-          toggleIcon.classList.add('fa-chevron-down');
-          // 保存状态到本地存储
-          const states = JSON.parse(localStorage.getItem('receiptDetailCollapseStates') || '{}');
-          states[section.id] = false;
-          localStorage.setItem('receiptDetailCollapseStates', JSON.stringify(states));
-        });
-      }
     });
-  });
 
-  // 显示图片模态框
-  function showImageModal(imageSrc, title) {
-      $('#modalImage').attr('src', imageSrc);
-      $('#imageModalTitle').text(title + ' - 小票图片');
-      $('#imageModal').modal('show');
-  }
+// 编辑小票信息 - 使用增强工具
+$('#editReceiptForm').on('submit', async function(e) {
+    e.preventDefault();
 
-  // 编辑小票信息
-  $('#editReceiptForm').on('submit', function(e) {
-      e.preventDefault();
+    const form = $(this);
+    const submitBtn = form.find('button[type="submit"]');
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    
+    // 表单验证
+    const validator = new FormValidator(form);
+    validator.addRule('name', FormValidator.rules.required, '请输入小票名称');
+    
+    if (!validator.validate()) {
+        form.addClass('shake');
+        setTimeout(() => form.removeClass('shake'), 500);
+        return;
+    }
 
-      const formData = new FormData(this);
-      const data = Object.fromEntries(formData.entries());
+    loadingManager.show(submitBtn, '保存中...');
 
-      $.ajax({
-          url: '/api/receipts/{{ receipt.id }}',
-          type: 'PUT',
-          contentType: 'application/json',
-          data: JSON.stringify(data),
-          success: function(response) {
-              $('#editReceiptModal').modal('hide');
-              location.reload();
-          },
-          error: function(xhr) {
-              alert('保存失败: ' + (xhr.responseJSON?.message || '未知错误'));
-          }
-      });
-  });
+    try {
+        await $.ajax({
+            url: '/api/receipts/{{ receipt.id }}',
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(data)
+        });
+        
+        showToast('小票信息已更新', 'success');
+        $('#editReceiptModal').modal('hide');
+        
+        // 成功反馈动画
+        submitBtn.addClass('pulse-success');
+        
+        setTimeout(() => location.reload(), 1000);
+    } catch (xhr) {
+        showToast('保存失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+        form.addClass('shake');
+        setTimeout(() => form.removeClass('shake'), 500);
+    } finally {
+        loadingManager.hide(submitBtn);
+    }
+});
 
-  // 添加商品
-  $('#addItemForm').on('submit', function(e) {
-      e.preventDefault();
+// 添加商品 - 使用增强工具
+$('#addItemForm').on('submit', async function(e) {
+    e.preventDefault();
 
-      const formData = new FormData(this);
-      const data = Object.fromEntries(formData.entries());
-      data.receipt_id = {{ receipt.id }};
-      data.is_special_offer = formData.has('is_special_offer');
+    const form = $(this);
+    const submitBtn = form.find('button[type="submit"]');
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    data.receipt_id = {{ receipt.id|tojson }};
+    data.is_special_offer = formData.has('is_special_offer');
+    
+    // 表单验证
+    const validator = new FormValidator(form);
+    validator.addRule('name_zh', FormValidator.rules.required, '请输入中文名称');
+    validator.addRule('price_jpy', FormValidator.rules.positiveNumber, '日元价格必须大于0');
+    
+    if (!validator.validate()) {
+        form.addClass('shake');
+        setTimeout(() => form.removeClass('shake'), 500);
+        return;
+    }
 
-      $.ajax({
-          url: '/api/items',
-          type: 'POST',
-          contentType: 'application/json',
-          data: JSON.stringify(data),
-          success: function(response) {
-              $('#addItemModal').modal('hide');
-              location.reload();
-          },
-          error: function(xhr) {
-              alert('添加失败: ' + (xhr.responseJSON?.message || '未知错误'));
-          }
-      });
-  });
+    loadingManager.show(submitBtn, '添加中...');
 
-  // 编辑商品表单提交
-  $('#editItemForm').on('submit', function(e) {
-      e.preventDefault();
+    try {
+        await $.ajax({
+            url: '/api/items',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data)
+        });
+        
+        showToast('商品已添加', 'success');
+        $('#addItemModal').modal('hide');
+        
+        // 成功反馈动画
+        submitBtn.addClass('pulse-success');
+        
+        setTimeout(() => location.reload(), 1000);
+    } catch (xhr) {
+        showToast('添加失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+        form.addClass('shake');
+        setTimeout(() => form.removeClass('shake'), 500);
+    } finally {
+        loadingManager.hide(submitBtn);
+    }
+});
 
-      const formData = new FormData(this);
-      const data = Object.fromEntries(formData.entries());
-      data.is_special_offer = formData.has('is_special_offer');
-      const itemId = $('#editItemForm').data('item-id');
+// 编辑商品表单提交 - 使用增强工具
+$('#editItemForm').on('submit', async function(e) {
+    e.preventDefault();
 
-      $.ajax({
-          url: `/api/items/${itemId}`,
-          type: 'PUT',
-          contentType: 'application/json',
-          data: JSON.stringify(data),
-          success: function(response) {
-              $('#editItemModal').modal('hide');
-              location.reload();
-          },
-          error: function(xhr) {
-              alert('保存失败: ' + (xhr.responseJSON?.message || '未知错误'));
-          }
-      });
-  });
+    const form = $(this);
+    const submitBtn = form.find('button[type="submit"]');
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    data.is_special_offer = formData.has('is_special_offer');
+    const itemId = form.data('item-id');
+    
+    // 表单验证
+    const validator = new FormValidator(form);
+    validator.addRule('name_zh', FormValidator.rules.required, '请输入中文名称');
+    validator.addRule('price_jpy', FormValidator.rules.positiveNumber, '日元价格必须大于0');
+    
+    if (!validator.validate()) {
+        form.addClass('shake');
+        setTimeout(() => form.removeClass('shake'), 500);
+        return;
+    }
 
-  // 重新识别小票
-  function reprocessReceipt(receiptId) {
-      if (confirm('确定要重新进行AI识别吗？\n\n注意：这将重新分析小票内容，可能会覆盖现有的商品信息和分类。建议在识别结果不理想时使用。')) {
-          // 显示加载状态
-          const btn = event.target.closest('button');
-          const originalContent = btn.innerHTML;
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI识别中...';
-          btn.disabled = true;
+    loadingManager.show(submitBtn, '保存中...');
 
-          $.ajax({
-              url: `/api/receipts/${receiptId}/reprocess`,
-              type: 'POST',
-              success: function(response) {
-                  // 开始状态监控
-                  startStatusMonitoring(receiptId, btn, originalContent);
-                  alert('AI识别已启动！系统将自动监控识别进度。');
-              },
-              error: function(xhr) {
-                  alert('AI识别启动失败: ' + (xhr.responseJSON?.message || '未知错误'));
-                  // 恢复按钮状态
-                  btn.innerHTML = originalContent;
-                  btn.disabled = false;
-              }
-          });
-      }
-  }
+    try {
+        await $.ajax({
+            url: `/api/items/${itemId}`,
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(data)
+        });
+        
+        showToast('商品信息已更新', 'success');
+        $('#editItemModal').modal('hide');
+        
+        // 成功反馈动画
+        submitBtn.addClass('pulse-success');
+        
+        setTimeout(() => location.reload(), 1000);
+    } catch (xhr) {
+        showToast('保存失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+        form.addClass('shake');
+        setTimeout(() => form.removeClass('shake'), 500);
+    } finally {
+        loadingManager.hide(submitBtn);
+    }
+});
 
-  // 监控识别状态
-  function startStatusMonitoring(receiptId, btn, originalContent) {
-      let checkCount = 0;
-      const maxChecks = 30; // 最多检查30次（约1分钟）
+// 重新识别小票 - 使用增强工具
+async function reprocessReceipt(receiptId) {
+    const confirmed = await iosConfirm(
+        '这将重新分析小票内容，可能会覆盖现有的商品信息和分类。', 
+        '确定要重新进行AI识别吗？',
+        { 
+            confirmText: 'AI识别', 
+            cancelText: '取消',
+            type: 'warning'
+        }
+    );
+    
+    if (confirmed) {
+        const btn = event.target.closest('button');
+        loadingManager.show(btn, 'AI识别中...');
 
-      function checkStatus() {
-          checkCount++;
+        try {
+            await $.ajax({
+                url: `/api/receipts/${receiptId}/reprocess`,
+                type: 'POST'
+            });
+            
+            showToast('AI识别已启动，正在处理中...', 'info', 5000);
+            startStatusMonitoring(receiptId, btn);
+        } catch (xhr) {
+            showToast('AI识别启动失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+            loadingManager.hide(btn);
+        }
+    }
+}
 
-          $.ajax({
-              url: `/api/receipts/${receiptId}`,
-              type: 'GET',
-              success: function(data) {
-                  const status = data.status;
+// 监控识别状态 - 优化版
+function startStatusMonitoring(receiptId, btn) {
+    let checkCount = 0;
+    const maxChecks = 30;
+    const loadingToastId = showLoadingToast('AI正在识别中，请稍候...');
 
-                  if (status === '识别成功' || status === '识别失败') {
-                      // 识别完成
-                      if (status === '识别成功') {
-                          alert('AI识别完成！页面即将刷新显示最新结果。');
-                      } else {
-                          alert('AI识别失败，请检查小票图片质量或稍后重试。');
-                      }
-                      location.reload();
-                      return;
-                  }
+    function checkStatus() {
+        checkCount++;
 
-                  if (checkCount < maxChecks && (status === '待处理' || status === '正在识别')) {
-                      // 继续监控
-                      setTimeout(checkStatus, 2000); // 每2秒检查一次
-                  } else {
-                      // 超时或其他状态
-                      alert('AI识别处理时间较长，请稍后手动刷新页面查看结果。');
-                      btn.innerHTML = originalContent;
-                      btn.disabled = false;
-                  }
-              },
-              error: function() {
-                  // 检查失败，恢复按钮
-                  btn.innerHTML = originalContent;
-                  btn.disabled = false;
-              }
-          });
-      }
+        $.ajax({
+            url: `/api/receipts/${receiptId}`,
+            type: 'GET',
+            success: function(data) {
+                const status = data.status;
 
-      // 开始检查
-      setTimeout(checkStatus, 2000);
-  }
+                if (status === '识别成功' || status === '识别失败') {
+                    hideToast(loadingToastId);
+                    loadingManager.hide(btn);
+                    
+                    if (status === '识别成功') {
+                        showToast('AI识别完成！页面即将刷新', 'success');
+                        $(btn).addClass('pulse-success');
+                    } else {
+                        showToast('AI识别失败，请检查小票图片质量', 'error');
+                        $(btn).addClass('shake');
+                        setTimeout(() => $(btn).removeClass('shake'), 500);
+                    }
+                    setTimeout(() => location.reload(), 1500);
+                    return;
+                }
 
-  // 删除小票
-  function deleteReceipt(receiptId) {
-      if (confirm('确定要删除这张小票吗？此操作不可恢复！')) {
-          $.ajax({
-              url: `/api/receipts/${receiptId}`,
-              type: 'DELETE',
-              success: function(response) {
-                  alert('删除成功');
-                  window.location.href = '{{ url_for("frontend.receipt_list") }}';
-              },
-              error: function(xhr) {
-                  alert('删除失败: ' + (xhr.responseJSON?.message || '未知错误'));
-              }
-          });
-      }
-  }
+                if (checkCount < maxChecks && (status === '待处理' || status === '正在识别')) {
+                    // 更新进度提示
+                    const progress = Math.round((checkCount / maxChecks) * 100);
+                    hideToast(loadingToastId);
+                    showLoadingToast(`AI识别中... (${progress}%)`);
+                    setTimeout(checkStatus, 2000);
+                } else {
+                    hideToast(loadingToastId);
+                    showToast('处理时间较长，请稍后手动刷新页面', 'warning');
+                    loadingManager.hide(btn);
+                }
+            },
+            error: function() {
+                hideToast(loadingToastId);
+                loadingManager.hide(btn);
+                showToast('状态检查失败', 'error');
+            }
+        });
+    }
 
-  // 编辑商品
-  function editItem(itemId) {
-      // 先获取商品数据
-      $.ajax({
-          url: `/api/items/${itemId}`,
-          type: 'GET',
-          success: function(item) {
-              // 填充表单数据
-              const form = $('#editItemForm');
-              form.data('item-id', itemId);
+    setTimeout(checkStatus, 2000);
+}
 
-              form.find('input[name="name_zh"]').val(item.name_zh || '');
-              form.find('input[name="name_ja"]').val(item.name_ja || '');
-              form.find('input[name="price_jpy"]').val(item.price_jpy || '');
-              form.find('input[name="price_cny"]').val(item.price_cny || '');
-              form.find('input[name="category_1"]').val(item.category_1 || '');
-              form.find('input[name="category_2"]').val(item.category_2 || '');
-              form.find('input[name="category_3"]').val(item.category_3 || '');
-              form.find('input[name="special_info"]').val(item.special_info || '');
-              form.find('textarea[name="notes"]').val(item.notes || '');
-              form.find('input[name="is_special_offer"]').prop('checked', item.is_special_offer || false);
+// 删除小票 - 使用增强工具
+async function deleteReceipt(receiptId) {
+    const confirmed = await iosConfirm(
+        '此操作不可恢复！', 
+        '确定要删除这张小票吗？',
+        { 
+            confirmText: '删除', 
+            cancelText: '取消',
+            type: 'error'
+        }
+    );
+    
+    if (confirmed) {
+        const btn = event.target.closest('button');
+        loadingManager.show(btn, '删除中...');
 
-              // 显示模态框
-              $('#editItemModal').modal('show');
-          },
-          error: function(xhr) {
-              alert('获取商品信息失败: ' + (xhr.responseJSON?.message || '未知错误'));
-          }
-      });
-  }
+        try {
+            await $.ajax({
+                url: `/api/receipts/${receiptId}`,
+                type: 'DELETE'
+            });
+            
+            showToast('小票已删除，即将返回列表', 'success');
+            
+            // 成功动画
+            $(btn).addClass('pulse-success');
+            
+            setTimeout(() => window.location.href = '{{ url_for("frontend.receipt_list") }}', 1000);
+        } catch (xhr) {
+            showToast('删除失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+            $(btn).addClass('shake');
+            setTimeout(() => $(btn).removeClass('shake'), 500);
+        } finally {
+            loadingManager.hide(btn);
+        }
+    }
+}
 
-  // 删除商品
-  function deleteItem(itemId) {
-      if (confirm('确定要删除这个商品吗？')) {
-          $.ajax({
-              url: `/api/items/${itemId}`,
-              type: 'DELETE',
-              success: function(response) {
-                  location.reload();
-              },
-              error: function(xhr) {
-                  alert('删除失败: ' + (xhr.responseJSON?.message || '未知错误'));
-              }
-          });
-      }
-  }
+// 编辑商品 - 使用增强工具
+function editItem(itemId) {
+    const loadingToastId = showLoadingToast('获取商品信息...');
+    
+    $.ajax({
+        url: `/api/items/${itemId}`,
+        type: 'GET',
+        success: function(item) {
+            hideToast(loadingToastId);
+            
+            const form = $('#editItemForm');
+            form.data('item-id', itemId);
+
+            // 清除之前的验证错误
+            form.find('.is-invalid').removeClass('is-invalid');
+            form.find('.invalid-feedback').remove();
+
+            form.find('input[name="name_zh"]').val(item.name_zh || '');
+            form.find('input[name="name_ja"]').val(item.name_ja || '');
+            form.find('input[name="price_jpy"]').val(item.price_jpy || '');
+            form.find('input[name="price_cny"]').val(item.price_cny || '');
+            form.find('input[name="category_1"]').val(item.category_1 || '');
+            form.find('input[name="category_2"]').val(item.category_2 || '');
+            form.find('input[name="category_3"]').val(item.category_3 || '');
+            form.find('input[name="special_info"]').val(item.special_info || '');
+            form.find('textarea[name="notes"]').val(item.notes || '');
+            form.find('input[name="is_special_offer"]').prop('checked', item.is_special_offer || false);
+
+            $('#editItemModal').modal('show');
+            showToast('商品信息已加载', 'success', 1500);
+        },
+        error: function(xhr) {
+            hideToast(loadingToastId);
+            showToast('获取商品信息失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+        }
+    });
+}
+
+// 删除商品 - 使用增强工具
+async function deleteItem(itemId) {
+    const confirmed = await iosConfirm(
+        '此操作不可恢复！', 
+        '确定要删除这个商品吗？',
+        { 
+            confirmText: '删除', 
+            cancelText: '取消',
+            type: 'error'
+        }
+    );
+    
+    if (confirmed) {
+        const btn = event.target.closest('button');
+        const itemRow = $(btn).closest('tr');
+        
+        loadingManager.show(btn, '删除中...');
+        
+        try {
+            await $.ajax({
+                url: `/api/items/${itemId}`,
+                type: 'DELETE'
+            });
+            
+            showToast('商品已删除', 'success');
+            
+            // 平滑移除动画
+            itemRow.addClass('shake');
+            setTimeout(() => {
+                itemRow.fadeOut(500, function() {
+                    $(this).remove();
+                    // 更新商品总数显示
+                    updateItemCount();
+                });
+            }, 500);
+            
+        } catch (xhr) {
+            showToast('删除失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+            itemRow.addClass('shake');
+            setTimeout(() => itemRow.removeClass('shake'), 500);
+        } finally {
+            loadingManager.hide(btn);
+        }
+    }
+}
+
+// 更新商品总数显示
+function updateItemCount() {
+    const itemCount = $('.item-row').length;
+    $('.badge.bg-primary').text(`${itemCount} 个商品`);
+    
+    if (itemCount === 0) {
+        const tbody = $('.table tbody');
+        tbody.html(`
+            <tr>
+                <td colspan="8" class="text-center text-muted py-4">
+                    <i class="fas fa-box-open fa-2x mb-2"></i><br>
+                    暂无商品数据
+                </td>
+            </tr>
+        `);
+    }
+}
+
+// 复制商品信息到剪贴板
+function copyItemInfo(itemId) {
+    $.ajax({
+        url: `/api/items/${itemId}`,
+        type: 'GET',
+        success: function(item) {
+            const itemInfo = `商品名称: ${item.name_zh || item.name_ja || '未知'}
+日元价格: ¥${item.price_jpy || '0'}
+人民币价格: ¥${item.price_cny || '0'}
+分类: ${[item.category_1, item.category_2, item.category_3].filter(c => c).join(' > ') || '未分类'}`;
+            
+            Utils.copyToClipboard(itemInfo);
+        },
+        error: function() {
+            showToast('获取商品信息失败', 'error');
+        }
+    });
+}
 </script>
 {% endblock %}

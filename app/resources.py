@@ -112,6 +112,11 @@ class ItemListResource(Resource):
         }
         return response
 
+    def post(self):
+        data = request.get_json()
+        new_item = ItemService.create_item(data)
+        return item_schema.dump(new_item), 201
+
 
 class ItemResource(Resource):
     def get(self, item_id):

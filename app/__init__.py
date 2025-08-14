@@ -53,9 +53,9 @@ def create_app(config_class=Config):
     )
     # 获取小票下的商品列表
     api.add_resource(ReceiptItemListResource, "/api/receipts/<int:receipt_id>/items")
-    # 获取商品列表
+    # 商品列表
     api.add_resource(ItemListResource, "/api/items")
-    # 获取单个商品详情
+    # 单个商品详情
     api.add_resource(ItemResource, "/api/items/<int:item_id>")
     # 导出接口
     api.add_resource(ExportResource, "/api/export")
