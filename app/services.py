@@ -622,3 +622,511 @@ class ExportService:
             export_records.append(record)
 
         return export_records, pagination
+
+
+class AnalyticsService:
+    """数据分析服务"""
+
+    @staticmethod
+    def get_dashboard_overview(args):
+        """
+        获取消费总览仪表盘数据
+
+        Returns:
+            dict: 包含总支出、小票数量、商品数量、使用天数、日均开销、折扣商品占比
+        """
+        from sqlalchemy import func
+        from datetime import datetime, timedelta
+
+        # 基础查询条件
+        start_date = args.get("start_date")
+        end_date = args.get("end_date")
+
+        # 确保日期参数是字符串类型
+        if start_date is not None and not isinstance(start_date, str):
+            start_date = str(start_date)
+        if end_date is not None and not isinstance(end_date, str):
+            end_date = str(end_date)
+
+        receipt_query = Receipt.query.filter(
+            Receipt.status == RecognitionStatus.SUCCESS
+        )
+        item_query = (
+            db.session.query(Item)
+            .join(Receipt)
+            .filter(Receipt.status == RecognitionStatus.SUCCESS)
+        )
+
+        if start_date and isinstance(start_date, str):
+            try:
+                start_datetime = datetime.fromisoformat(start_date)
+                receipt_query = receipt_query.filter(
+                    Receipt.transaction_time >= start_datetime
+                )
+                item_query = item_query.filter(
+                    Receipt.transaction_time >= start_datetime
+                )
+            except (ValueError, TypeError):
+                pass
+
+        if end_date and isinstance(end_date, str):
+            try:
+                end_datetime = datetime.fromisoformat(end_date)
+                receipt_query = receipt_query.filter(
+                    Receipt.transaction_time <= end_datetime
+                )
+                item_query = item_query.filter(Receipt.transaction_time <= end_datetime)
+            except (ValueError, TypeError):
+                pass
+
+        # 总支出（日元和人民币）
+        total_spending_jpy = (
+            db.session.query(func.sum(Item.price_jpy))
+            .join(Receipt)
+            .filter(Receipt.status == RecognitionStatus.SUCCESS)
+        )
+        total_spending_cny = (
+            db.session.query(func.sum(Item.price_cny))
+            .join(Receipt)
+            .filter(Receipt.status == RecognitionStatus.SUCCESS)
+        )
+
+        if start_date and isinstance(start_date, str):
+            try:
+                start_datetime = datetime.fromisoformat(start_date)
+                total_spending_jpy = total_spending_jpy.filter(
+                    Receipt.transaction_time >= start_datetime
+                )
+                total_spending_cny = total_spending_cny.filter(
+                    Receipt.transaction_time >= start_datetime
+                )
+            except (ValueError, TypeError):
+                pass
+
+        if end_date and isinstance(end_date, str):
+            try:
+                end_datetime = datetime.fromisoformat(end_date)
+                total_spending_jpy = total_spending_jpy.filter(
+                    Receipt.transaction_time <= end_datetime
+                )
+                total_spending_cny = total_spending_cny.filter(
+                    Receipt.transaction_time <= end_datetime
+                )
+            except (ValueError, TypeError):
+                pass
+
+        total_jpy = total_spending_jpy.scalar() or 0
+        total_cny = total_spending_cny.scalar() or 0
+
+        # 小票数量
+        receipt_count = receipt_query.count()
+
+        # 商品数量
+        item_count = item_query.count()
+
+        # 时间跨度（根据交易时间计算最早和最晚的交易时间差）
+        # 如果指定了时间范围（开始或结束日期任一），计算该范围内的交易时间跨度
+        # 如果没有指定任何时间范围，使用所有数据的范围
+        if start_date or end_date:
+            # 有指定时间范围，计算该范围内的交易时间跨度
+            date_range = db.session.query(
+                func.min(Receipt.transaction_time), func.max(Receipt.transaction_time)
+            ).filter(Receipt.status == RecognitionStatus.SUCCESS)
+
+            if start_date and isinstance(start_date, str):
+                try:
+                    start_datetime = datetime.fromisoformat(start_date)
+                    date_range = date_range.filter(
+                        Receipt.transaction_time >= start_datetime
+                    )
+                except (ValueError, TypeError):
+                    pass
+
+            if end_date and isinstance(end_date, str):
+                try:
+                    end_datetime = datetime.fromisoformat(end_date)
+                    date_range = date_range.filter(
+                        Receipt.transaction_time <= end_datetime
+                    )
+                except (ValueError, TypeError):
+                    pass
+
+            result = date_range.first()
+            min_date, max_date = result if result else (None, None)
+        else:
+            # 没有指定任何时间范围，使用所有数据的范围
+            result = (
+                db.session.query(
+                    func.min(Receipt.transaction_time),
+                    func.max(Receipt.transaction_time),
+                )
+                .filter(Receipt.status == RecognitionStatus.SUCCESS)
+                .first()
+            )
+            min_date, max_date = result if result else (None, None)
+
+        time_span = 0
+        if min_date and max_date:
+            # 计算实际的天数差异
+            time_span = (max_date.date() - min_date.date()).days + 1
+
+        # 日均开销
+        daily_avg_jpy = total_jpy / time_span if time_span > 0 else 0
+        daily_avg_cny = total_cny / time_span if time_span > 0 else 0
+
+        # 折扣商品占比
+        special_item_count = item_query.filter(Item.is_special_offer == True).count()
+        discount_ratio = (
+            (special_item_count / item_count * 100) if item_count > 0 else 0
+        )
+
+        return {
+            "total_spending": {
+                "jpy": round(total_jpy, 2) if total_jpy else 0,
+                "cny": round(total_cny, 2) if total_cny else 0,
+            },
+            "receipt_count": receipt_count,
+            "item_count": item_count,
+            "time_span": time_span,
+            "daily_average": {
+                "jpy": round(daily_avg_jpy, 2) if daily_avg_jpy else 0,
+                "cny": round(daily_avg_cny, 2) if daily_avg_cny else 0,
+            },
+            "discount_ratio": round(discount_ratio, 2),
+        }
+
+    @staticmethod
+    def get_spending_trend(args):
+        """
+        获取消费趋势数据
+
+        Returns:
+            dict: 包含每日消费数据和对应的商品列表
+        """
+        from sqlalchemy import func
+        from datetime import datetime, date
+
+        start_date = args.get("start_date")
+        end_date = args.get("end_date")
+
+        # 确保日期参数是字符串类型
+        if start_date is not None and not isinstance(start_date, str):
+            start_date = str(start_date)
+        if end_date is not None and not isinstance(end_date, str):
+            end_date = str(end_date)
+
+        # 构建查询 - 获取所有相关的商品数据
+        query = (
+            db.session.query(Receipt, Item)
+            .join(Item)
+            .filter(
+                Receipt.status == RecognitionStatus.SUCCESS,
+                Receipt.transaction_time.isnot(None),  # 排除空值
+            )
+        )
+
+        if start_date and isinstance(start_date, str):
+            try:
+                start_datetime = datetime.fromisoformat(start_date)
+                query = query.filter(Receipt.transaction_time >= start_datetime)
+            except (ValueError, TypeError):
+                pass
+
+        if end_date and isinstance(end_date, str):
+            try:
+                end_datetime = datetime.fromisoformat(end_date)
+                query = query.filter(Receipt.transaction_time <= end_datetime)
+            except (ValueError, TypeError):
+                pass
+
+        # 获取所有数据
+        results = query.all()
+
+        # 在Python中进行日期分组
+        daily_data = {}
+        for receipt, item in results:
+            if receipt.transaction_time:
+                date_key = receipt.transaction_time.date()
+                if date_key not in daily_data:
+                    daily_data[date_key] = {
+                        "total_jpy": 0,
+                        "total_cny": 0,
+                        "item_count": 0,
+                    }
+
+                daily_data[date_key]["total_jpy"] += item.price_jpy or 0
+                daily_data[date_key]["total_cny"] += item.price_cny or 0
+                daily_data[date_key]["item_count"] += 1
+
+        # 转换为前端需要的格式
+        trend_data = []
+        for date_key in sorted(daily_data.keys()):
+            data = daily_data[date_key]
+            trend_data.append(
+                {
+                    "date": date_key.isoformat(),
+                    "spending": {
+                        "jpy": round(data["total_jpy"], 2),
+                        "cny": round(data["total_cny"], 2),
+                    },
+                    "item_count": data["item_count"],
+                }
+            )
+
+        return trend_data
+
+    @staticmethod
+    def get_daily_items(date, args=None):
+        """
+        获取指定日期的商品列表
+
+        Args:
+            date: 日期字符串 (YYYY-MM-DD)
+            args: 额外的查询参数
+
+        Returns:
+            list: 当日商品列表
+        """
+        try:
+            target_date = datetime.strptime(date, "%Y-%m-%d").date()
+        except ValueError:
+            return []
+
+        # 构建日期范围：从当天0点到23:59:59
+        start_datetime = datetime.combine(target_date, datetime.min.time())
+        end_datetime = datetime.combine(target_date, datetime.max.time())
+
+        # 查询指定日期的商品
+        query = (
+            db.session.query(Item)
+            .join(Receipt)
+            .filter(
+                Receipt.status == RecognitionStatus.SUCCESS,
+                Receipt.transaction_time.is_not(None),
+                Receipt.transaction_time >= start_datetime,
+                Receipt.transaction_time <= end_datetime,
+            )
+        )
+
+        items = query.all()
+
+        # 转换为字典格式
+        items_data = []
+        for item in items:
+            items_data.append(
+                {
+                    "id": item.id,
+                    "receipt_id": item.receipt_id,
+                    "name_ja": item.name_ja,
+                    "name_zh": item.name_zh,
+                    "price_jpy": item.price_jpy,
+                    "price_cny": item.price_cny,
+                    "category_1": item.category_1,
+                    "category_2": item.category_2,
+                    "category_3": item.category_3,
+                    "special_info": item.special_info,
+                    "is_special_offer": item.is_special_offer,
+                    "notes": item.notes,
+                    "receipt_name": item.receipt.name if item.receipt else None,
+                    "store_name": item.receipt.store_name if item.receipt else None,
+                }
+            )
+
+        # 按价格从大到小排序
+        items_data.sort(key=lambda x: x["price_jpy"] or 0, reverse=True)
+
+        return items_data
+
+    @staticmethod
+    def get_category_analysis(args):
+        """
+        获取分类支出分析数据
+
+        Returns:
+            dict: 包含分类统计和层级结构
+        """
+        from sqlalchemy import func
+
+        start_date = args.get("start_date")
+        end_date = args.get("end_date")
+        category_level = args.get("category_level", "1")  # 默认显示一级分类
+        parent_category = args.get("parent_category")  # 父级分类名称
+
+        # 确保日期参数是字符串类型
+        if start_date is not None and not isinstance(start_date, str):
+            start_date = str(start_date)
+        if end_date is not None and not isinstance(end_date, str):
+            end_date = str(end_date)
+
+        # 基础查询
+        query = (
+            db.session.query(Item)
+            .join(Receipt)
+            .filter(Receipt.status == RecognitionStatus.SUCCESS)
+        )
+
+        if start_date and isinstance(start_date, str):
+            try:
+                start_datetime = datetime.fromisoformat(start_date)
+                query = query.filter(Receipt.transaction_time >= start_datetime)
+            except (ValueError, TypeError):
+                pass
+
+        if end_date and isinstance(end_date, str):
+            try:
+                end_datetime = datetime.fromisoformat(end_date)
+                query = query.filter(Receipt.transaction_time <= end_datetime)
+            except (ValueError, TypeError):
+                pass
+
+        # 根据层级选择分类字段
+        if category_level == "1":
+            category_field = Item.category_1
+        elif category_level == "2":
+            category_field = Item.category_2
+            if parent_category:
+                query = query.filter(Item.category_1 == parent_category)
+        elif category_level == "3":
+            category_field = Item.category_3
+            if parent_category:
+                query = query.filter(Item.category_2 == parent_category)
+        else:
+            category_field = Item.category_1
+
+        # 按分类统计
+        category_stats = (
+            query.with_entities(
+                category_field.label("category"),
+                func.sum(Item.price_jpy).label("total_jpy"),
+                func.sum(Item.price_cny).label("total_cny"),
+                func.count(Item.id).label("item_count"),
+            )
+            .filter(category_field.isnot(None))
+            .group_by(category_field)
+            .all()
+        )
+
+        # 转换为前端需要的格式
+        categories = []
+        total_jpy = 0
+        total_cny = 0
+
+        for row in category_stats:
+            category_total_jpy = row.total_jpy or 0
+            category_total_cny = row.total_cny or 0
+            total_jpy += category_total_jpy
+            total_cny += category_total_cny
+
+            categories.append(
+                {
+                    "category": row.category,
+                    "spending": {
+                        "jpy": round(category_total_jpy, 2),
+                        "cny": round(category_total_cny, 2),
+                    },
+                    "item_count": row.item_count,
+                    "percentage": 0,  # 稍后计算
+                }
+            )
+
+        # 计算百分比
+        for category in categories:
+            if total_jpy > 0:
+                category["percentage"] = round(
+                    category["spending"]["jpy"] / total_jpy * 100, 2
+                )
+
+        # 按金额排序
+        categories.sort(key=lambda x: x["spending"]["jpy"], reverse=True)
+
+        return {
+            "categories": categories,
+            "total_spending": {"jpy": round(total_jpy, 2), "cny": round(total_cny, 2)},
+            "category_level": category_level,
+            "parent_category": parent_category,
+        }
+
+    @staticmethod
+    def get_category_items(category, category_level="1", args=None):
+        """
+        获取指定分类的商品列表
+
+        Args:
+            category: 分类名称
+            category_level: 分类层级 (1, 2, 3)
+            args: 额外的查询参数
+
+        Returns:
+            list: 分类商品列表
+        """
+        start_date = args.get("start_date") if args else None
+        end_date = args.get("end_date") if args else None
+
+        # 确保日期参数是字符串类型
+        if start_date is not None and not isinstance(start_date, str):
+            start_date = str(start_date)
+        if end_date is not None and not isinstance(end_date, str):
+            end_date = str(end_date)
+
+        # 构建查询
+        query = (
+            db.session.query(Item)
+            .join(Receipt)
+            .filter(Receipt.status == RecognitionStatus.SUCCESS)
+        )
+
+        if start_date and isinstance(start_date, str):
+            try:
+                start_datetime = datetime.fromisoformat(start_date)
+                query = query.filter(Receipt.transaction_time >= start_datetime)
+            except (ValueError, TypeError):
+                pass
+
+        if end_date and isinstance(end_date, str):
+            try:
+                end_datetime = datetime.fromisoformat(end_date)
+                query = query.filter(Receipt.transaction_time <= end_datetime)
+            except (ValueError, TypeError):
+                pass
+
+        # 根据分类层级筛选
+        if category_level == "1":
+            query = query.filter(Item.category_1 == category)
+        elif category_level == "2":
+            query = query.filter(Item.category_2 == category)
+        elif category_level == "3":
+            query = query.filter(Item.category_3 == category)
+
+        items = query.all()
+
+        # 转换为字典格式
+        items_data = []
+        for item in items:
+            items_data.append(
+                {
+                    "id": item.id,
+                    "receipt_id": item.receipt_id,
+                    "name_ja": item.name_ja,
+                    "name_zh": item.name_zh,
+                    "price_jpy": item.price_jpy,
+                    "price_cny": item.price_cny,
+                    "category_1": item.category_1,
+                    "category_2": item.category_2,
+                    "category_3": item.category_3,
+                    "special_info": item.special_info,
+                    "is_special_offer": item.is_special_offer,
+                    "notes": item.notes,
+                    "receipt_name": item.receipt.name if item.receipt else None,
+                    "store_name": item.receipt.store_name if item.receipt else None,
+                    "transaction_time": (
+                        item.receipt.transaction_time.isoformat()
+                        if item.receipt and item.receipt.transaction_time
+                        else None
+                    ),
+                }
+            )
+
+        # 按价格从大到小排序
+        items_data.sort(key=lambda x: x["price_jpy"] or 0, reverse=True)
+
+        return items_data

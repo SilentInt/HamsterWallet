@@ -1,0 +1,165 @@
+{% extends "base.html" %} {% block extra_css %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/analytics.css') }}"
+/>
+{% endblock %} {% block content %}
+<div class="container">
+  <h1 class="page-title">
+    <i class="fas fa-chart-bar"></i>
+    数据报告
+  </h1>
+
+  <!-- 日期筛选器 -->
+  <div class="date-filter-section">
+    <div class="date-filter-container">
+      <div class="date-input-group">
+        <label for="startDate">开始日期</label>
+        <input type="date" id="startDate" class="form-control" />
+      </div>
+      <div class="date-input-group">
+        <label for="endDate">结束日期</label>
+        <input type="date" id="endDate" class="form-control" />
+      </div>
+      <div class="date-buttons">
+        <button id="allTimeFilter" class="btn btn-info">
+          <i class="fas fa-infinity"></i>
+          <span class="d-none d-sm-inline">全部</span>
+        </button>
+        <button id="resetFilter" class="btn btn-secondary">
+          <i class="fas fa-calendar"></i>
+          <span class="d-none d-sm-inline">近一月</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 消费总览仪表盘 -->
+  <div class="dashboard-section">
+    <h2 class="section-title">
+      <i class="fas fa-tachometer-alt"></i>
+      消费总览
+    </h2>
+    <div class="dashboard-grid">
+      <div class="metric-card">
+        <div class="metric-icon">
+          <i class="fas fa-yen-sign"></i>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">总支出</div>
+          <div class="metric-value" id="totalSpending">¥0</div>
+          <div class="metric-subvalue" id="totalSpendingCny">￥0</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <i class="fas fa-receipt"></i>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">小票数量</div>
+          <div class="metric-value" id="receiptCount">0</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <i class="fas fa-shopping-cart"></i>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">商品数量</div>
+          <div class="metric-value" id="itemCount">0</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <i class="fas fa-calendar-alt"></i>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">时间跨度</div>
+          <div class="metric-value" id="usageDays">0天</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">日均开销</div>
+          <div class="metric-value" id="dailyAverage">¥0</div>
+          <div class="metric-subvalue" id="dailyAverageCny">￥0</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <i class="fas fa-tags"></i>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">折扣商品占比</div>
+          <div class="metric-value" id="discountRatio">0%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 消费趋势分析 -->
+  <div class="trend-section">
+    <h2 class="section-title">
+      <i class="fas fa-chart-line"></i>
+      消费趋势分析
+    </h2>
+    <div class="trend-container">
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+      <div class="daily-items-container">
+        <h3 class="subsection-title">
+          <i class="fas fa-list"></i>
+          <span id="selectedDateTitle">选择日期查看商品</span>
+        </h3>
+        <div id="dailyItemsList" class="items-list">
+          <div class="empty-state">
+            <i class="fas fa-mouse-pointer"></i>
+            <p class="d-none d-md-block">点击折线图上的某一天查看当日商品</p>
+            <p class="d-md-none">轻触图表查看商品</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分类支出分析 -->
+  <div class="category-section">
+    <h2 class="section-title">
+      <i class="fas fa-chart-pie"></i>
+      分类支出分析
+    </h2>
+    <div class="category-container">
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 id="categoryChartTitle">支出分类</h3>
+          <div class="breadcrumb" id="categoryBreadcrumb">
+            <span class="breadcrumb-item active" data-level="1">一级分类</span>
+          </div>
+        </div>
+        <canvas id="categoryChart"></canvas>
+      </div>
+      <div class="category-items-container">
+        <h3 class="subsection-title">
+          <i class="fas fa-list"></i>
+          <span id="selectedCategoryTitle">选择分类查看商品</span>
+        </h3>
+        <div id="categoryItemsList" class="items-list">
+          <div class="empty-state">
+            <i class="fas fa-mouse-pointer"></i>
+            <p class="d-none d-md-block">点击饼图中的分类查看商品列表</p>
+            <p class="d-md-none">轻触分类查看商品</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script src="https://fastly.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/item-editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
+{% endblock %}

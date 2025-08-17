@@ -11,7 +11,7 @@ from .schemas import (
     items_schema,
     export_records_schema,
 )
-from .services import ReceiptService, ItemService, ExportService
+from .services import ReceiptService, ItemService, ExportService, AnalyticsService
 
 
 class ReceiptListResource(Resource):
@@ -196,3 +196,101 @@ class ExportResource(Resource):
 
         except Exception as e:
             return {"message": f"导出失败: {str(e)}"}, 500
+
+
+class AnalyticsDashboardResource(Resource):
+    """分析仪表盘资源"""
+
+    def get(self):
+        """
+        获取消费总览数据
+
+        查询参数:
+        - start_date: 开始日期 (ISO格式)
+        - end_date: 结束日期 (ISO格式)
+        """
+        try:
+            dashboard_data = AnalyticsService.get_dashboard_overview(request.args)
+            return dashboard_data
+        except Exception as e:
+            return {"message": f"获取仪表盘数据失败: {str(e)}"}, 500
+
+
+class AnalyticsTrendResource(Resource):
+    """消费趋势分析资源"""
+
+    def get(self):
+        """
+        获取消费趋势数据
+
+        查询参数:
+        - start_date: 开始日期 (ISO格式)
+        - end_date: 结束日期 (ISO格式)
+        """
+        try:
+            trend_data = AnalyticsService.get_spending_trend(request.args)
+            return {"data": trend_data}
+        except Exception as e:
+            return {"message": f"获取趋势数据失败: {str(e)}"}, 500
+
+
+class AnalyticsDailyItemsResource(Resource):
+    """每日商品列表资源"""
+
+    def get(self, date):
+        """
+        获取指定日期的商品列表
+
+        路径参数:
+        - date: 日期 (YYYY-MM-DD)
+        """
+        try:
+            items_data = AnalyticsService.get_daily_items(date, request.args)
+            return {"data": items_data}
+        except Exception as e:
+            return {"message": f"获取每日商品数据失败: {str(e)}"}, 500
+
+
+class AnalyticsCategoryResource(Resource):
+    """分类分析资源"""
+
+    def get(self):
+        """
+        获取分类支出分析数据
+
+        查询参数:
+        - start_date: 开始日期 (ISO格式)
+        - end_date: 结束日期 (ISO格式)
+        - category_level: 分类层级 (1, 2, 3)
+        - parent_category: 父级分类名称
+        """
+        try:
+            category_data = AnalyticsService.get_category_analysis(request.args)
+            return category_data
+        except Exception as e:
+            return {"message": f"获取分类分析数据失败: {str(e)}"}, 500
+
+
+class AnalyticsCategoryItemsResource(Resource):
+    """分类商品列表资源"""
+
+    def get(self, category):
+        """
+        获取指定分类的商品列表
+
+        路径参数:
+        - category: 分类名称
+
+        查询参数:
+        - category_level: 分类层级 (1, 2, 3)
+        - start_date: 开始日期 (ISO格式)
+        - end_date: 结束日期 (ISO格式)
+        """
+        try:
+            category_level = request.args.get("category_level", "1")
+            items_data = AnalyticsService.get_category_items(
+                category, category_level, request.args
+            )
+            return {"data": items_data}
+        except Exception as e:
+            return {"message": f"获取分类商品数据失败: {str(e)}"}, 500

@@ -14,6 +14,11 @@ from .resources import (
     ItemListResource,
     ItemResource,
     ExportResource,
+    AnalyticsDashboardResource,
+    AnalyticsTrendResource,
+    AnalyticsDailyItemsResource,
+    AnalyticsCategoryResource,
+    AnalyticsCategoryItemsResource,
 )
 
 
@@ -59,5 +64,17 @@ def create_app(config_class=Config):
     api.add_resource(ItemResource, "/api/items/<int:item_id>")
     # 导出接口
     api.add_resource(ExportResource, "/api/export")
+
+    # 数据分析接口
+    api.add_resource(AnalyticsDashboardResource, "/api/analytics/dashboard")
+    api.add_resource(AnalyticsTrendResource, "/api/analytics/trend")
+    api.add_resource(
+        AnalyticsDailyItemsResource, "/api/analytics/daily/<string:date>/items"
+    )
+    api.add_resource(AnalyticsCategoryResource, "/api/analytics/category")
+    api.add_resource(
+        AnalyticsCategoryItemsResource,
+        "/api/analytics/category/<string:category>/items",
+    )
 
     return app

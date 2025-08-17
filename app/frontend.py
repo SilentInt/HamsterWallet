@@ -67,6 +67,12 @@ def report():
     return render_template("report.html")
 
 
+@frontend_bp.route("/analytics")
+def analytics():
+    """数据报告页"""
+    return render_template("analytics.html")
+
+
 @frontend_bp.route("/config")
 def get_config():
     """提供前端配置信息"""
