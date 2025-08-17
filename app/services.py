@@ -297,7 +297,11 @@ class ReceiptService:
 
                 # 处理特价信息
                 special_info = item_data.get("special_info")
-                new_item.special_info = special_info
+                # 当特价信息不为否时原样设置，否则设为空
+                if special_info is None or special_info == "否":
+                    new_item.special_info = None
+                else:
+                    new_item.special_info = special_info
                 # 设置是否特价商品：当special_info不为空字符串或null时为1，其他时候为0
                 new_item.is_special_offer = bool(
                     special_info is not None
