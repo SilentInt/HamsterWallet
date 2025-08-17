@@ -2,13 +2,43 @@
 import os
 import threading
 import copy
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import or_, and_
 from flask import current_app
 
 from .models import db, Receipt, Item, RecognitionStatus
 from .ai_service import AIService
 from .file_service import FileService
+
+# 默认用户时区（东九区）
+DEFAULT_USER_TIMEZONE = timezone(timedelta(hours=9))
+
+
+def convert_local_to_utc(local_datetime, user_timezone=DEFAULT_USER_TIMEZONE):
+    """
+    将用户本地时间转换为UTC时间
+
+    Args:
+        local_datetime: 用户本地时间（naive datetime）
+        user_timezone: 用户时区，默认为东九区
+
+    Returns:
+        UTC时间（naive datetime）
+    """
+    if local_datetime is None:
+        return None
+
+    # 如果已经有时区信息，先转换为UTC
+    if local_datetime.tzinfo is not None:
+        return local_datetime.astimezone(timezone.utc).replace(tzinfo=None)
+
+    # 将本地时间标记为用户时区
+    local_tz_time = local_datetime.replace(tzinfo=user_timezone)
+
+    # 转换为UTC时间（移除时区信息）
+    utc_time = local_tz_time.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return utc_time
 
 
 class ReceiptService:
@@ -148,7 +178,9 @@ class ReceiptService:
             text_description=data.get("text_description"),
             notes=data.get("notes"),
             transaction_time=(
-                datetime.fromisoformat(data.get("transaction_time"))
+                convert_local_to_utc(
+                    datetime.fromisoformat(data.get("transaction_time"))
+                )
                 if data.get("transaction_time")
                 else None
             ),
@@ -229,20 +261,22 @@ class ReceiptService:
         if transaction_time_str := ai_data.get("transaction_time"):
             try:
                 # 新格式是 "YYYY-MM-DD HH:MM:SS"，需要转换为datetime
-                receipt.transaction_time = datetime.strptime(
+                local_time = datetime.strptime(
                     transaction_time_str, "%Y-%m-%d %H:%M:%S"
                 )
+                # 将AI识别的当地时间转换为UTC存储
+                receipt.transaction_time = convert_local_to_utc(local_time)
             except ValueError:
                 # 如果格式不匹配，尝试其他格式作为兼容
                 try:
-                    receipt.transaction_time = datetime.strptime(
+                    local_time = datetime.strptime(
                         transaction_time_str, "%Y-%m-%d %H:%M"
                     )
+                    receipt.transaction_time = convert_local_to_utc(local_time)
                 except ValueError:
                     try:
-                        receipt.transaction_time = datetime.fromisoformat(
-                            transaction_time_str
-                        )
+                        local_time = datetime.fromisoformat(transaction_time_str)
+                        receipt.transaction_time = convert_local_to_utc(local_time)
                     except ValueError:
                         pass  # 格式错误，忽略
 
@@ -310,6 +344,13 @@ class ItemService:
             )
 
         db.session.add(new_item)
+
+        # 更新对应小票的最后修改时间
+        if new_item.receipt_id:
+            receipt = Receipt.query.get(new_item.receipt_id)
+            if receipt:
+                receipt.updated_at = datetime.now(timezone.utc)
+
         db.session.commit()
         return new_item
 
@@ -344,6 +385,10 @@ class ItemService:
             item.is_special_offer = bool(
                 special_info is not None and special_info != "" and special_info != "否"
             )
+
+        # 更新对应小票的最后修改时间
+        if item.receipt:
+            item.receipt.updated_at = datetime.now(timezone.utc)
 
         db.session.commit()
         return item

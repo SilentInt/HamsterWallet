@@ -541,6 +541,7 @@ class AIService:
             )
             self.client = OpenAI(base_url=base_url, api_key=api_key)
             self.model_name = current_app.config.get("MODULE_NAME", "gemini-2.5-pro")
+            self.temperature = current_app.config.get("OPENAI_TEMPERATURE", 0.1)
         return self.client
 
     def _encode_image(self, image_path):
@@ -673,6 +674,7 @@ class AIService:
             response = client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,  # type: ignore
+                temperature=self.temperature,
             )
 
             response_content = response.choices[0].message.content

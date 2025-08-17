@@ -1,8 +1,9 @@
 # app/resources.py
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import request, jsonify
 from flask_restful import Resource, reqparse
 from .models import db, Receipt, Item
+from .services import convert_local_to_utc
 from .schemas import (
     receipt_schema,
     receipts_schema,
@@ -60,9 +61,11 @@ class ReceiptResource(Resource):
         # 处理交易时间
         if transaction_time_str := data.get("transaction_time"):
             try:
-                receipt.transaction_time = datetime.fromisoformat(
+                local_time = datetime.fromisoformat(
                     transaction_time_str.replace("T", " ")
                 )
+                # 将用户输入的当地时间转换为UTC存储
+                receipt.transaction_time = convert_local_to_utc(local_time)
             except ValueError:
                 # 如果格式错误，保持原值
                 pass
@@ -131,6 +134,11 @@ class ItemResource(Resource):
 
     def delete(self, item_id):
         item = Item.query.get_or_404(item_id)
+
+        # 更新对应小票的最后修改时间
+        if item.receipt:
+            item.receipt.updated_at = datetime.now(timezone.utc)
+
         db.session.delete(item)
         db.session.commit()
         return "", 204
@@ -178,7 +186,7 @@ class ExportResource(Resource):
                     "total_items": pagination.total,
                 },
                 "export_info": {
-                    "export_time": datetime.utcnow().isoformat(),
+                    "export_time": datetime.now(timezone.utc).isoformat(),
                     "total_records": len(export_records),
                     "has_more": pagination.page < pagination.pages,
                 },

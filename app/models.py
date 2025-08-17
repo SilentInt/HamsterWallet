@@ -1,6 +1,6 @@
 # app/models.py
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from sqlalchemy import Integer, String, Float, DateTime, Boolean, Date, Enum, ForeignKey
@@ -30,12 +30,16 @@ class Receipt(db.Model):
     store_category: Mapped[Optional[str]] = mapped_column(
         String(50), nullable=True
     )  # 店铺分类
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
     transaction_time: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
     status: Mapped[RecognitionStatus] = mapped_column(
         Enum(RecognitionStatus), default=RecognitionStatus.PENDING, nullable=False
@@ -59,7 +63,7 @@ class Receipt(db.Model):
         self.image_filename = image_filename
         self.text_description = text_description
         self.notes = notes
-        self.transaction_time = transaction_time or datetime.utcnow()
+        self.transaction_time = transaction_time  # 不设置默认值，由调用者决定
         self.store_name = store_name
         self.store_category = store_category
 

@@ -173,7 +173,8 @@
             <div class="info-item-compact">
               <div class="info-row-compact">
                 <span class="info-label-compact">上传时间</span>
-                <span class="info-value-compact small"
+                <span class="info-value-compact small" 
+                      data-timestamp="{{ receipt.created_at.isoformat() }}"
                   >{{ receipt.created_at.strftime('%m-%d %H:%M') }}</span
                 >
               </div>
@@ -183,7 +184,7 @@
             <div class="info-item-compact">
               <div class="info-row-compact">
                 <span class="info-label-compact">交易时间</span>
-                <span class="info-value-compact small"
+                <span class="info-value-compact small" data-timestamp="{{ receipt.transaction_time.isoformat() }}"
                   >{{ receipt.transaction_time.strftime('%m-%d %H:%M') }}</span
                 >
               </div>
@@ -193,7 +194,7 @@
             <div class="info-item-compact">
               <div class="info-row-compact">
                 <span class="info-label-compact">最后修改</span>
-                <span class="info-value-compact small"
+                <span class="info-value-compact small" data-timestamp="{{ receipt.updated_at.isoformat() }}"
                   >{{ receipt.updated_at.strftime('%m-%d %H:%M') }}</span
                 >
               </div>

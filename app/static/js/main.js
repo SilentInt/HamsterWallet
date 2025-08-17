@@ -624,21 +624,25 @@ function initializeInfiniteScroll() {
         // 首先尝试从网格容器中直接获取列
         let newItems = [];
         const gridContainer = tempDiv.querySelector("#itemsGrid, #receiptGrid");
-        
+
         if (gridContainer) {
           // 从网格容器中获取直接子元素（列）
-          newItems = Array.from(gridContainer.children).filter(child => {
-            return child.className.includes('col-') && 
-                   child.querySelector(".item-compact, .receipt-compact");
+          newItems = Array.from(gridContainer.children).filter((child) => {
+            return (
+              child.className.includes("col-") &&
+              child.querySelector(".item-compact, .receipt-compact")
+            );
           });
         } else {
           // 备用方法：只选择明确在网格行中的列元素
           const gridRows = tempDiv.querySelectorAll(".row");
-          gridRows.forEach(row => {
-            if (row.id === 'itemsGrid' || row.id === 'receiptGrid') {
-              const cols = Array.from(row.children).filter(child => {
-                return child.className.includes('col-') && 
-                       child.querySelector(".item-compact, .receipt-compact");
+          gridRows.forEach((row) => {
+            if (row.id === "itemsGrid" || row.id === "receiptGrid") {
+              const cols = Array.from(row.children).filter((child) => {
+                return (
+                  child.className.includes("col-") &&
+                  child.querySelector(".item-compact, .receipt-compact")
+                );
               });
               newItems.push(...cols);
             }
@@ -648,25 +652,30 @@ function initializeInfiniteScroll() {
         if (newItems.length > 0) {
           // 去重处理：检查是否已经存在相同的元素
           const existingIds = new Set();
-          itemsGrid.querySelectorAll('.item-compact, .receipt-compact').forEach(card => {
-            const id = card.dataset.id || card.getAttribute('data-id');
-            if (id) existingIds.add(id);
-          });
+          itemsGrid
+            .querySelectorAll(".item-compact, .receipt-compact")
+            .forEach((card) => {
+              const id = card.dataset.id || card.getAttribute("data-id");
+              if (id) existingIds.add(id);
+            });
 
           // 添加进入动画类
           newItems.forEach((item, index) => {
-            const cardElement = item.querySelector(".item-compact, .receipt-compact");
+            const cardElement = item.querySelector(
+              ".item-compact, .receipt-compact"
+            );
             if (cardElement) {
               // 检查是否已存在
-              const itemId = cardElement.dataset.id || cardElement.getAttribute('data-id');
+              const itemId =
+                cardElement.dataset.id || cardElement.getAttribute("data-id");
               if (itemId && existingIds.has(itemId)) {
                 return; // 跳过重复项
               }
-              
+
               cardElement.classList.add("fade-in-up");
               cardElement.style.transitionDelay = `${index * 0.02}s`;
             }
-            
+
             // 只添加不重复的元素
             itemsGrid.appendChild(item);
 
@@ -677,6 +686,9 @@ function initializeInfiniteScroll() {
               }
             }, 10);
           });
+
+          // 为新加载的内容转换时区
+          convertNewTimestamps(itemsGrid);
 
           // 更新分页信息
           const nextPageNum = parseInt(nextPage) + 1;
@@ -722,16 +734,16 @@ function initializeInfiniteScroll() {
   // 清除滑动惯性的函数
   function clearScrollMomentum() {
     // 阻止当前滚动惯性
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     setTimeout(() => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }, 10);
-    
+
     // 对于移动端Safari，额外处理
     if (isMobile() && /iPhone|iPad|iPod|Safari/.test(navigator.userAgent)) {
       const scrollTop = window.pageYOffset;
       window.scrollTo(0, scrollTop);
-      
+
       // 创建一个轻微的反向滚动来停止惯性
       setTimeout(() => {
         window.scrollTo(0, scrollTop - 1);
@@ -767,7 +779,10 @@ function initializeInfiniteScroll() {
       if (isNearBottom()) {
         if (loadMoreBtn.dataset.nextPage && !isLoading) {
           loadMoreData();
-        } else if (!loadMoreBtn.dataset.nextPage || loadMoreBtn.dataset.nextPage === "") {
+        } else if (
+          !loadMoreBtn.dataset.nextPage ||
+          loadMoreBtn.dataset.nextPage === ""
+        ) {
           // 到达底部且没有更多数据，清除滑动惯性
           clearScrollMomentum();
         }
@@ -833,4 +848,99 @@ function initializeListAnimation() {
 document.addEventListener("DOMContentLoaded", function () {
   // 延迟一点时间以确保DOM完全渲染
   setTimeout(initializeListAnimation, 100);
+
+  // 初始化时区转换
+  convertTimestampsToLocal();
 });
+
+// 时区转换功能
+function convertTimestampsToLocal() {
+  // 查找所有带有 data-timestamp 属性的元素
+  const timestampElements = document.querySelectorAll("[data-timestamp]");
+
+  timestampElements.forEach((element) => {
+    const isoTimestamp = element.getAttribute("data-timestamp");
+    if (isoTimestamp) {
+      try {
+        // 解析ISO时间戳
+        let date;
+
+        // 检查是否包含时区信息
+        if (isoTimestamp.includes("+") || isoTimestamp.includes("Z")) {
+          // 有时区信息，直接解析
+          date = new Date(isoTimestamp);
+        } else {
+          // 没有时区信息，假设是UTC时间
+          date = new Date(isoTimestamp + "Z");
+        }
+
+        // 检查日期是否有效
+        if (!isNaN(date.getTime())) {
+          // 检测原始文本格式来确定输出格式
+          const originalText = element.textContent.trim();
+          const isFullFormat = originalText.match(/^\d{4}-\d{2}-\d{2}/); // 以年份开头的完整格式
+
+          // 转换为用户本地时区的格式
+          const format = isFullFormat ? "full" : "short";
+          const localTime = formatDateToLocal(date, format);
+          element.textContent = localTime;
+        }
+      } catch (error) {
+        console.warn("时间戳转换失败:", isoTimestamp, error);
+        // 保持原有显示不变
+      }
+    }
+  });
+}
+
+// 格式化日期为本地时区
+function formatDateToLocal(date, format = "short") {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  // 根据原始格式决定输出格式
+  if (format === "full") {
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  } else {
+    return `${month}-${day} ${hours}:${minutes}`;
+  }
+}
+
+// 为动态加载的内容提供时区转换
+function convertNewTimestamps(container) {
+  if (container) {
+    const newTimestampElements = container.querySelectorAll("[data-timestamp]");
+    newTimestampElements.forEach((element) => {
+      const isoTimestamp = element.getAttribute("data-timestamp");
+      if (isoTimestamp) {
+        try {
+          let date;
+
+          // 检查是否包含时区信息
+          if (isoTimestamp.includes("+") || isoTimestamp.includes("Z")) {
+            // 有时区信息，直接解析
+            date = new Date(isoTimestamp);
+          } else {
+            // 没有时区信息，假设是UTC时间
+            date = new Date(isoTimestamp + "Z");
+          }
+
+          if (!isNaN(date.getTime())) {
+            // 检测原始文本格式
+            const originalText = element.textContent.trim();
+            const isFullFormat = originalText.match(/^\d{4}-\d{2}-\d{2}/);
+
+            const format = isFullFormat ? "full" : "short";
+            const localTime = formatDateToLocal(date, format);
+            element.textContent = localTime;
+          }
+        } catch (error) {
+          console.warn("新加载时间戳转换失败:", isoTimestamp, error);
+        }
+      }
+    });
+  }
+}

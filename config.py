@@ -32,3 +32,6 @@ class Config:
         "OPENAI_API_BASE_URL", "https://api.openai.com/v1"
     )
     MODULE_NAME = os.environ.get("MODULE_NAME", "gpt-4o-mini")
+    OPENAI_TEMPERATURE = float(
+        os.environ.get("OPENAI_TEMPERATURE", "0.1")
+    )  # AI模型温度设置

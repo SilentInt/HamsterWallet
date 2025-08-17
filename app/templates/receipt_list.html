@@ -135,10 +135,16 @@
                     <!-- 时间信息（次要信息）-->
                     <div class="receipt-source-compact">
                         <div class="small text-muted">
-                            <i class="fas fa-clock me-1"></i>{{ receipt.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            <i class="fas fa-clock me-1"></i>
+                            <span data-timestamp="{{ receipt.created_at.isoformat() }}">
+                                {{ receipt.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </span>
                             {% if receipt.transaction_time %}
                             <span class="mx-1">•</span>
-                            <i class="fas fa-calendar me-1"></i>交易：{{ receipt.transaction_time.strftime('%m-%d %H:%M') }}
+                            <i class="fas fa-calendar me-1"></i>交易：
+                            <span data-timestamp="{{ receipt.transaction_time.isoformat() }}">
+                                {{ receipt.transaction_time.strftime('%m-%d %H:%M') }}
+                            </span>
                             {% endif %}
                         </div>
                     </div>
