@@ -11,6 +11,20 @@ html {
         font-size: 14px;
         line-height: 1.5;
     }
+                /* 容器适配 */
+                .container {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    max-width: 100%;
+                }
+        
+                /* 页面标题移动端优化 */
+                .page-title {
+                    font-size: 1.6rem;
+                    margin-bottom: 1.2rem;
+                    text-align: center;
+                    padding: 0.5rem 0;
+                }
 }
 
 /* 日期筛选器 */
@@ -22,6 +36,21 @@ html {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* 移动端日期筛选器优化 */
+@media (max-width: 768px) {
+    .date-filter-section {
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border-radius: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .date-filter-section {
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+}
 .date-filter-container {
     display: flex;
     gap: 1rem;
@@ -80,21 +109,58 @@ html {
     gap: 1.5rem;
 }
 
+/* 移动端仪表盘优化 */
+@media (max-width: 768px) {
+    .dashboard-section {
+        margin-bottom: 2rem;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+}
 .metric-card {
     background: white;
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border: 1px solid #e9ecef;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .metric-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 移动端指标卡片优化 */
+@media (max-width: 768px) {
+    .metric-card {
+        border-radius: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .metric-card {
+        padding: 0.75rem;
+        border-radius: 8px;
+        gap: 0.6rem;
+    }
 }
 
 .metric-icon {
@@ -109,6 +175,23 @@ html {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
+/* 移动端指标图标优化 */
+@media (max-width: 768px) {
+    .metric-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.3rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .metric-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+}
 .metric-content {
     flex: 1;
 }
@@ -133,6 +216,28 @@ html {
     margin-top: 0.25rem;
 }
 
+/* 移动端指标数值优化 */
+@media (max-width: 768px) {
+    .metric-value {
+        font-size: 1.6rem;
+    }
+
+    .metric-subvalue {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .metric-value {
+        font-size: 1.4rem;
+        line-height: 1.1;
+    }
+
+    .metric-subvalue {
+        font-size: 0.8rem;
+        margin-top: 0.15rem;
+    }
+}
 /* 趋势分析 */
 .trend-section {
     margin-bottom: 3rem;
@@ -148,14 +253,62 @@ html {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* 移动端趋势分析优化 */
+@media (max-width: 768px) {
+    .trend-section {
+        margin-bottom: 2rem;
+    }
+
+    .trend-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        border-radius: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .trend-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .trend-container {
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+}
 .chart-container {
     position: relative;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
 }
 
 .chart-container canvas {
+    width: 100% !important;
+    max-width: 100%;
     max-height: 400px;
 }
 
+/* 移动端图表容器优化 */
+@media (max-width: 768px) {
+    .chart-container canvas {
+        max-height: 350px;
+        min-height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container canvas {
+        max-height: 320px;
+        min-height: 280px;
+        width: 100% !important;
+        max-width: 100%;
+    }
+}
 /* 分类分析 */
 .category-section {
     margin-bottom: 3rem;
@@ -164,13 +317,37 @@ html {
 .category-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+    gap: 1.5rem;
     background: white;
     border-radius: 12px;
-    padding: 2rem;
+    padding: 1.5rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.5s ease-out;
 }
 
+/* 移动端分类分析优化 */
+@media (max-width: 768px) {
+    .category-section {
+        margin-bottom: 2rem;
+    }
+
+    .category-container {
+        grid-template-columns: 1fr;
+        border-radius: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .category-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .category-container {
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+}
 .chart-header {
     margin-bottom: 1rem;
 }
@@ -187,6 +364,7 @@ html {
     gap: 0.5rem;
     align-items: center;
     flex-wrap: wrap;
+    min-height: 32px;
 }
 
 .breadcrumb-item {
@@ -198,6 +376,10 @@ html {
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid #dee2e6;
+    line-height: 1.4;
+        min-height: 28px;
+        display: flex;
+        align-items: center;
 }
 
 .breadcrumb-item:hover {
@@ -223,12 +405,20 @@ html {
 
 /* 商品列表 - 升级为紧凑型卡片布局 */
 .items-list {
-    max-height: 600px;
+    max-height: 500px;
     overflow-y: auto;
     border: 1px solid #dee2e6;
     border-radius: 12px;
     background: #f8f9fa;
     padding: 12px;
+}
+
+/* 移动端商品列表优化 */
+@media (max-width: 768px) {
+    .items-list {
+        max-height: 400px;
+        padding: 8px;
+    }
 }
 
 .empty-state {
@@ -261,11 +451,24 @@ html {
     padding: 0;
 }
 
+/* 移动端商品网格优化 */
+@media (max-width: 768px) {
+    .items-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .items-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+}
 /* 商品紧凑型卡片 - 继承商品列表页样式 */
 .analytics-item-compact {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     border-radius: 12px;
     border: 1px solid #e1e5e9;
     background: linear-gradient(135deg, #fff 0%, #fafafa 100%);
@@ -274,6 +477,23 @@ html {
     transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     position: relative;
     height: fit-content;
+    justify-content: space-between;
+    }
+    
+    /* 移动端商品卡片优化 */
+    @media (max-width: 768px) {
+        .analytics-item-compact {
+            padding: 12px;
+            border-radius: 10px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .analytics-item-compact {
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
 }
 
 .analytics-item-compact::before {
@@ -300,13 +520,205 @@ html {
 }
 
 /* 操作按钮组 - 直接显示在卡片底部 */
-.analytics-item-actions {
+/* 商品名称和价格行 */
+.analytics-item-header {
     display: flex;
+    justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8px;
+        gap: 12px;
+}
+
+/* 商品名称行 */
+.analytics-item-name {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+        gap: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            line-height: 1.4;
+        flex: 1;
+}
+
+.analytics-item-name .text-muted {
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: #6c757d;
+}
+
+/* 价格显示 */
+.analytics-item-price {
+    display: flex;
+    flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        min-width: fit-content;
+    }
+    
+/* 移动端商品名称和价格优化 */
+@media (max-width: 768px) {
+    .analytics-item-header {
+        margin-bottom: 6px;
+        gap: 10px;
+    }
+    
+    .analytics-item-name {
+        font-size: 0.95rem;
+        gap: 6px;
+    }
+    
+    .analytics-item-name .text-muted {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .analytics-item-header {
+        margin-bottom: 5px;
+        gap: 8px;
+        flex-direction: column;
+        align-items: stretch;
+        }
+    
+        .analytics-item-name {
+            font-size: 0.9rem;
+            gap: 5px;
+            margin-bottom: 4px;
+        }
+    
+        .analytics-item-name .text-muted {
+            font-size: 0.75rem;
+        }
+    
+        .analytics-item-price {
+            align-items: flex-start;
+            flex-direction: row;
+            gap: 8px;
+        }
+}
+
+.analytics-price-jpy {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #3498db;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.analytics-price-cny {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #6c757d;
+    padding: 3px 6px;
+    background: #f1f3f4;
+    border-radius: 4px;
+}
+
+/* 移动端价格显示优化 */
+@media (max-width: 768px) {
+    .analytics-price-jpy {
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .analytics-price-cny {
+        font-size: 0.85rem;
+        padding: 2px 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .analytics-price-jpy {
+        font-size: 0.95rem;
+        font-weight: 700;
+    }
+
+    .analytics-price-cny {
+        font-size: 0.8rem;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+}
+/* 商品详细信息 */
+.analytics-item-details {
+    display: flex;
+    flex-direction: column;
     gap: 6px;
-    justify-content: flex-end;
+    font-size: 0.85rem;
+    color: #6c757d;
+    flex: 1;
+}
+
+.analytics-item-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.analytics-item-detail-row i {
+    width: 12px;
+    text-align: center;
+    color: #3498db;
+}
+
+/* 分类标签和操作按钮底部区域 */
+.analytics-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-top: 8px;
     padding-top: 8px;
     border-top: 1px solid #f1f3f4;
+}
+/* 分类标签 */
+.analytics-item-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1;
+}
+
+.analytics-item-categories .badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: #e9ecef;
+    color: #495057;
+    border: 1px solid #dee2e6;
+}
+
+.analytics-item-categories .badge.bg-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+    color: white;
+    border: none;
+    box-shadow: 0 1px 4px rgba(99, 102, 241, 0.25);
+}
+
+.analytics-item-categories .badge.bg-info {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+    color: white;
+    border: none;
+    box-shadow: 0 1px 4px rgba(139, 92, 246, 0.25);
+}
+
+.analytics-item-categories .badge.bg-success {
+    background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%) !important;
+    color: white;
+    border: none;
+    box-shadow: 0 1px 4px rgba(168, 85, 247, 0.25);
+}
+
+/* 操作按钮组 - 紧凑对齐 */
+.analytics-item-actions {
+    display: flex;
+    gap: 6px;
+    margin-left: 8px;
 }
 
 .analytics-item-actions .btn {
@@ -354,115 +766,6 @@ html {
 .analytics-item-actions .btn i {
     font-size: 0.75rem;
 }
-
-/* 商品名称行 */
-.analytics-item-name {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #2c3e50;
-    line-height: 1.4;
-    margin-bottom: 4px;
-}
-
-.analytics-item-name .text-muted {
-    font-size: 0.85rem;
-    font-weight: 400;
-    color: #6c757d;
-}
-
-/* 价格显示 */
-.analytics-item-price {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-}
-
-.analytics-price-jpy {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #3498db;
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.analytics-price-cny {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: #6c757d;
-    padding: 3px 6px;
-    background: #f1f3f4;
-    border-radius: 4px;
-}
-
-/* 商品详细信息 */
-.analytics-item-details {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 0.85rem;
-    color: #6c757d;
-}
-
-.analytics-item-detail-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.analytics-item-detail-row i {
-    width: 12px;
-    text-align: center;
-    color: #3498db;
-}
-
-/* 分类标签 */
-.analytics-item-categories {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
-}
-
-.analytics-item-categories .badge {
-    font-size: 0.7rem;
-    font-weight: 500;
-    padding: 3px 6px;
-    border-radius: 6px;
-    background: #e9ecef;
-    color: #495057;
-    border: 1px solid #dee2e6;
-}
-
-.analytics-item-categories .badge.bg-primary {
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
-    color: white;
-    border: none;
-    box-shadow: 0 1px 4px rgba(99, 102, 241, 0.25);
-}
-
-.analytics-item-categories .badge.bg-info {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
-    color: white;
-    border: none;
-    box-shadow: 0 1px 4px rgba(139, 92, 246, 0.25);
-}
-
-.analytics-item-categories .badge.bg-success {
-    background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%) !important;
-    color: white;
-    border: none;
-    box-shadow: 0 1px 4px rgba(168, 85, 247, 0.25);
-}
-
 /* 特价标识 */
 .analytics-special-offer-badge {
     background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
@@ -612,43 +915,9 @@ html {
   border-color: #adb5bd;
 }
 
-/* 视图切换按钮增强 */
+/* 视图切换按钮增强 - 去掉列表切换，只保留网格视图 */
 .view-toggle {
-    display: flex;
-    gap: 4px;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    overflow: hidden;
-    background: white;
-}
-
-.view-toggle-btn {
-    padding: 8px 12px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #6c757d;
-    min-width: 44px;
-    justify-content: center;
-}
-
-.view-toggle-btn:hover {
-    background: #f8f9fa;
-    color: #495057;
-}
-
-.view-toggle-btn.active {
-    background: #3498db;
-    color: white;
-}
-
-.view-toggle-btn.active:hover {
-    background: #2980b9;
+    display: none;
 }
 
 /* 商品内容区域 */
@@ -711,11 +980,6 @@ html {
   .items-sort {
     order: 2;
     justify-content: center;
-  }
-
-  .view-toggle {
-    order: 3;
-    align-self: center;
   }
 
   .sort-select {
@@ -840,6 +1104,10 @@ html {
 
     .chart-container {
         order: 1;
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
     }
 
     .daily-items-container,
@@ -848,13 +1116,10 @@ html {
     }
 
     .chart-container canvas {
-        max-height: 300px;
-    }
-
-    /* 商品列表移动端优化 */
-    .items-list {
-        max-height: 400px;
-        padding: 8px;
+        max-height: 350px;
+        min-height: 300px;
+        width: 100% !important;
+        max-width: 100%;
     }
 
     .items-grid {
@@ -882,11 +1147,6 @@ html {
     }
 
     .analytics-item-detail-row {
-        font-size: 0.8rem;
-    }
-
-    .view-toggle-btn {
-        padding: 8px 10px;
         font-size: 0.8rem;
     }
 
@@ -921,6 +1181,7 @@ html {
     .breadcrumb-item {
         font-size: 0.8rem;
         padding: 0.2rem 0.6rem;
+        min-height: 26px;
     }
 
     /* 空状态优化 */
@@ -989,9 +1250,9 @@ html {
         font-weight: 600;
     }
 
-    /* 仪表盘单列布局 */
+                /* 仪表盘网格布局 - 移动端使用2列 */
     .dashboard-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
         gap: 0.75rem;
     }
     
@@ -1046,7 +1307,10 @@ html {
     }
 
     .chart-container canvas {
-        max-height: 250px;
+        max-height: 320px;
+        min-height: 280px;
+        width: 100% !important;
+        max-width: 100%;
     }
 
     /* 商品列表手机端优化 */
@@ -1121,16 +1385,6 @@ html {
         gap: 4px;
     }
 
-    .view-toggle-btn {
-        padding: 8px;
-        min-width: 40px;
-        border-radius: 6px;
-    }
-
-    .view-toggle-btn span {
-        display: none;
-    }
-
     /* 面包屑导航手机端 */
     .breadcrumb {
         flex-wrap: wrap;
@@ -1141,6 +1395,7 @@ html {
         font-size: 0.7rem;
         padding: 0.15rem 0.5rem;
         border-radius: 12px;
+        min-height: 24px;
     }
 
     /* 空状态手机端 */
@@ -1266,10 +1521,6 @@ html {
 /* 交互增强 */
 .analytics-item-compact:active {
     transform: translateY(-1px) scale(0.98);
-}
-
-.view-toggle-btn:active {
-    transform: scale(0.95);
 }
 
 /* 滚动条美化 */
@@ -1634,7 +1885,10 @@ html {
     }
 
     .chart-container canvas {
-        max-height: 200px;
+        max-height: 280px;
+        min-height: 240px;
+        width: 100% !important;
+        max-width: 100%;
     }
 
     .items-list {
@@ -1670,5 +1924,89 @@ html {
 
     .metric-value {
         font-size: 1.1rem;
+    }
+}
+
+/* 隐藏的分类样式 */
+.category-chart-legend .hidden-category {
+    text-decoration: line-through;
+    opacity: 0.6;
+    color: #999 !important;
+}
+
+/* 饼图工具提示隐藏项目 */
+.chart-tooltip-hidden {
+    opacity: 0.6;
+    text-decoration: line-through;
+}
+
+/* Chart.js 图例增强样式 */
+.chartjs-render-monitor {
+    position: relative;
+}
+
+/* 图例项目自定义样式 */
+canvas+div .chartjs-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 0 8px;
+}
+
+canvas+div .chartjs-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+canvas+div .chartjs-legend .legend-item:hover {
+    background-color: #f8f9fa;
+}
+
+canvas+div .chartjs-legend .legend-item.hidden {
+    opacity: 0.6;
+    text-decoration: line-through;
+}
+
+/* 移动端图例优化 */
+@media (max-width: 768px) {
+    canvas+div .chartjs-legend {
+        gap: 6px;
+        margin-top: 16px;
+        padding: 0 12px;
+    }
+    
+    canvas+div .chartjs-legend .legend-item {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+        flex-shrink: 0;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    canvas+div .chartjs-legend {
+        gap: 4px;
+        margin-top: 12px;
+        padding: 0 8px;
+        justify-content: flex-start;
+    }
+    
+    canvas+div .chartjs-legend .legend-item {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 6px;
+        flex: 0 1 auto;
+        max-width: calc(50% - 4px);
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }

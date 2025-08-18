@@ -7,6 +7,7 @@ class AnalyticsPage {
     this.currentCategoryLevel = 1;
     this.currentParentCategory = null;
     this.categoryStack = [];
+    this.hiddenCategories = new Set(); // 添加隐藏分类集合
 
     this.init();
   }
@@ -347,15 +348,6 @@ class AnalyticsPage {
               <option value="special">特价商品优先</option>
             </select>
           </div>
-          
-          <div class="view-toggle">
-            <button class="view-toggle-btn active" data-view="grid">
-              <i class="fas fa-th"></i>
-            </button>
-            <button class="view-toggle-btn" data-view="list">
-              <i class="fas fa-list"></i>
-            </button>
-          </div>
         </div>
       </div>
     `;
@@ -364,9 +356,6 @@ class AnalyticsPage {
       <div class="items-content">
         <div class="items-grid">
           ${items.map((item) => this.generateItemCard(item)).join("")}
-        </div>
-        <div class="items-list-view" style="display: none;">
-          ${items.map((item) => this.generateItemRow(item)).join("")}
         </div>
       </div>
     `;
@@ -406,24 +395,28 @@ class AnalyticsPage {
            data-item-id="${item.id || ""}"
            data-price-jpy="${item.price_jpy || 0}"
            data-is-special="${item.is_special_offer || false}">
-        <div class="analytics-item-name">
-          ${item.name_zh || item.name_ja || "未知商品"}
-          ${
-            item.name_ja && item.name_zh
-              ? `<span class="text-muted">${item.name_ja}</span>`
-              : ""
-          }
-          ${
-            item.is_special_offer
-              ? '<span class="analytics-special-offer-badge" title="特价商品">特价</span>'
-              : ""
-          }
-        </div>
         
-        <div class="analytics-item-price">
-          ${priceDisplay}
+        <!-- 商品名称和价格行 -->
+        <div class="analytics-item-header">
+          <div class="analytics-item-name">
+            ${item.name_zh || item.name_ja || "未知商品"}
+            ${
+              item.name_ja && item.name_zh
+                ? `<span class="text-muted">${item.name_ja}</span>`
+                : ""
+            }
+            ${
+              item.is_special_offer
+                ? '<span class="analytics-special-offer-badge" title="特价商品">特价</span>'
+                : ""
+            }
+          </div>
+          <div class="analytics-item-price">
+            ${priceDisplay}
+          </div>
         </div>
 
+        <!-- 商品详细信息 -->
         <div class="analytics-item-details">
           <div class="analytics-item-detail-row" title="店铺名称">
             <i class="fas fa-store"></i>
@@ -455,23 +448,25 @@ class AnalyticsPage {
           }
         </div>
 
-        ${
-          categories
-            ? `<div class="analytics-item-categories" title="商品分类">${categories}</div>`
-            : ""
-        }
-        
-        <div class="analytics-item-actions">
-          <button class="btn btn-sm btn-outline-primary" onclick="window.analytics.viewReceipt('${
-            item.receipt_id || ""
-          }')" title="查看小票">
-            <i class="fas fa-receipt"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-warning" onclick="window.analytics.editItem('${
-            item.id || ""
-          }')" title="编辑商品">
-            <i class="fas fa-edit"></i>
-          </button>
+        <!-- 分类标签和操作按钮 -->
+        <div class="analytics-item-footer">
+          ${
+            categories
+              ? `<div class="analytics-item-categories">${categories}</div>`
+              : '<div class="analytics-item-categories"></div>'
+          }
+          <div class="analytics-item-actions">
+            <button class="btn btn-sm btn-outline-primary" onclick="window.analytics.viewReceipt('${
+              item.receipt_id || ""
+            }')" title="查看小票">
+              <i class="fas fa-receipt"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning" onclick="window.analytics.editItem('${
+              item.id || ""
+            }')" title="编辑商品">
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -586,25 +581,44 @@ class AnalyticsPage {
                   return data.labels.map((label, index) => {
                     const value = data.datasets[0].data[index];
                     const percentage = categories[index].percentage;
+                    const isHidden = this.hiddenCategories.has(label);
+                    const meta = chart.getDatasetMeta(0);
+                    const actuallyHidden = meta.data[index].hidden;
+                    
                     return {
                       text: `${label} (${percentage}%)`,
-                      fillStyle: data.datasets[0].backgroundColor[index],
+                      fillStyle: actuallyHidden ? '#ccc' : data.datasets[0].backgroundColor[index],
                       strokeStyle: data.datasets[0].borderColor,
                       lineWidth: data.datasets[0].borderWidth,
                       index: index,
+                      hidden: actuallyHidden,
+                      fontColor: actuallyHidden ? '#999' : '#666',
+                      textDecoration: actuallyHidden ? 'line-through' : 'none'
                     };
                   });
                 }
                 return [];
               },
+              filter: (legendItem, chartData) => {
+                // 保持所有图例项可见，即使分类被隐藏
+                return true;
+              }
             },
+            onClick: (event, legendItem) => {
+              const category = labels[legendItem.index];
+              
+              // 普通点击切换隐藏状态
+              this.toggleCategoryVisibility(category);
+            }
           },
           tooltip: {
             callbacks: {
               label: (context) => {
                 const category = categories[context.dataIndex];
+                const isHidden = this.hiddenCategories.has(context.label);
+                const status = isHidden ? ' [已隐藏]' : '';
                 return [
-                  `${context.label}: ¥${context.parsed.toLocaleString()}`,
+                  `${context.label}: ¥${context.parsed.toLocaleString()}${status}`,
                   `占比: ${category.percentage}%`,
                   `商品数: ${category.item_count}件`,
                 ];
@@ -619,10 +633,40 @@ class AnalyticsPage {
             this.onCategoryClick(clickedCategory.category);
           }
         },
+        onHover: (event, activeElements) => {
+          event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+        }
       },
     });
 
     this.updateCategoryBreadcrumb(categoryData);
+  }
+
+  // 新增：切换分类可见性
+  toggleCategoryVisibility(category) {
+    if (this.hiddenCategories.has(category)) {
+      this.hiddenCategories.delete(category);
+    } else {
+      this.hiddenCategories.add(category);
+    }
+    
+    // 更新图表显示，隐藏/显示对应的数据段
+    if (this.categoryChart && this.categoryChart.data) {
+      const categoryIndex = this.categoryChart.data.labels.indexOf(category);
+      if (categoryIndex !== -1) {
+        const isHidden = this.hiddenCategories.has(category);
+        
+        // 切换数据段的hidden状态
+        this.categoryChart.getDatasetMeta(0).data[categoryIndex].hidden = isHidden;
+        
+        // 更新图表
+        this.categoryChart.update();
+      }
+    }
+    
+    // 显示操作提示
+    const action = this.hiddenCategories.has(category) ? '隐藏' : '显示';
+    this.showToast(`${action}分类 "${category}"`, 'info');
   }
 
   getCategoryLevelName(level) {
@@ -798,15 +842,6 @@ class AnalyticsPage {
               <option value="special">特价商品优先</option>
             </select>
           </div>
-          
-          <div class="view-toggle">
-            <button class="view-toggle-btn active" data-view="grid">
-              <i class="fas fa-th"></i>
-            </button>
-            <button class="view-toggle-btn" data-view="list">
-              <i class="fas fa-list"></i>
-            </button>
-          </div>
         </div>
       </div>
     `;
@@ -815,9 +850,6 @@ class AnalyticsPage {
       <div class="items-content">
         <div class="items-grid">
           ${items.map((item) => this.generateCategoryItemCard(item)).join("")}
-        </div>
-        <div class="items-list-view" style="display: none;">
-          ${items.map((item) => this.generateCategoryItemRow(item)).join("")}
         </div>
       </div>
     `;
@@ -861,24 +893,28 @@ class AnalyticsPage {
            data-item-id="${item.id || ""}"
            data-price-jpy="${item.price_jpy || 0}"
            data-is-special="${item.is_special_offer || false}">
-        <div class="analytics-item-name">
-          ${item.name_zh || item.name_ja || "未知商品"}
-          ${
-            item.name_ja && item.name_zh
-              ? `<span class="text-muted">${item.name_ja}</span>`
-              : ""
-          }
-          ${
-            item.is_special_offer
-              ? '<span class="analytics-special-offer-badge" title="特价商品">特价</span>'
-              : ""
-          }
-        </div>
         
-        <div class="analytics-item-price">
-          ${priceDisplay}
+        <!-- 商品名称和价格行 -->
+        <div class="analytics-item-header">
+          <div class="analytics-item-name">
+            ${item.name_zh || item.name_ja || "未知商品"}
+            ${
+              item.name_ja && item.name_zh
+                ? `<span class="text-muted">${item.name_ja}</span>`
+                : ""
+            }
+            ${
+              item.is_special_offer
+                ? '<span class="analytics-special-offer-badge" title="特价商品">特价</span>'
+                : ""
+            }
+          </div>
+          <div class="analytics-item-price">
+            ${priceDisplay}
+          </div>
         </div>
 
+        <!-- 商品详细信息 -->
         <div class="analytics-item-details">
           <div class="analytics-item-detail-row" title="店铺名称">
             <i class="fas fa-store"></i>
@@ -914,23 +950,25 @@ class AnalyticsPage {
           }
         </div>
 
-        ${
-          categories
-            ? `<div class="analytics-item-categories" title="商品分类">${categories}</div>`
-            : ""
-        }
-        
-        <div class="analytics-item-actions">
-          <button class="btn btn-sm btn-outline-primary" onclick="window.analytics.viewReceipt('${
-            item.receipt_id || ""
-          }')" title="查看小票">
-            <i class="fas fa-receipt"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-warning" onclick="window.analytics.editItem('${
-            item.id || ""
-          }')" title="编辑商品">
-            <i class="fas fa-edit"></i>
-          </button>
+        <!-- 分类标签和操作按钮 -->
+        <div class="analytics-item-footer">
+          ${
+            categories
+              ? `<div class="analytics-item-categories">${categories}</div>`
+              : '<div class="analytics-item-categories"></div>'
+          }
+          <div class="analytics-item-actions">
+            <button class="btn btn-sm btn-outline-primary" onclick="window.analytics.viewReceipt('${
+              item.receipt_id || ""
+            }')" title="查看小票">
+              <i class="fas fa-receipt"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-warning" onclick="window.analytics.editItem('${
+              item.id || ""
+            }')" title="编辑商品">
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -977,33 +1015,8 @@ class AnalyticsPage {
   }
 
   setupItemsInteraction(container, items) {
-    const toggleBtns = container.querySelectorAll(".view-toggle-btn");
-    const gridView = container.querySelector(".items-grid");
-    const listView = container.querySelector(".items-list-view");
     const searchInput = container.querySelector(".search-input");
     const sortSelect = container.querySelector(".sort-select");
-
-    let currentItems = [...items];
-
-    // 视图切换
-    toggleBtns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const view = btn.dataset.view;
-
-        // 更新按钮状态
-        toggleBtns.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-
-        // 切换视图
-        if (view === "grid") {
-          gridView.style.display = "grid";
-          listView.style.display = "none";
-        } else {
-          gridView.style.display = "none";
-          listView.style.display = "block";
-        }
-      });
-    });
 
     // 搜索功能
     searchInput.addEventListener("input", (e) => {
@@ -1079,7 +1092,6 @@ class AnalyticsPage {
 
     // 更新显示
     const gridView = container.querySelector(".items-grid");
-    const listView = container.querySelector(".items-list-view");
 
     if (filteredItems.length === 0) {
       const emptyHtml = `
@@ -1089,7 +1101,6 @@ class AnalyticsPage {
         </div>
       `;
       gridView.innerHTML = emptyHtml;
-      listView.innerHTML = emptyHtml;
     } else {
       // 判断当前是日期商品还是分类商品
       const isDateItems = container.closest("#dailyItemsList");
@@ -1098,15 +1109,9 @@ class AnalyticsPage {
         gridView.innerHTML = filteredItems
           .map((item) => this.generateItemCard(item))
           .join("");
-        listView.innerHTML = filteredItems
-          .map((item) => this.generateItemRow(item))
-          .join("");
       } else {
         gridView.innerHTML = filteredItems
           .map((item) => this.generateCategoryItemCard(item))
-          .join("");
-        listView.innerHTML = filteredItems
-          .map((item) => this.generateCategoryItemRow(item))
           .join("");
       }
     }
