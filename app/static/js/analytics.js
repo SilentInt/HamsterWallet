@@ -657,9 +657,7 @@ class AnalyticsPage {
         plugins: {
           title: {
             display: true,
-            text: `${this.getCategoryLevelName(
-              categoryData.category_level
-            )}支出分布`,
+            text: this.getChartTitle(categoryData),
           },
           legend: {
             position: this.chartType === "pie" ? "bottom" : "top",
@@ -795,6 +793,16 @@ class AnalyticsPage {
     return names[level] || "分类";
   }
 
+  getChartTitle(categoryData) {
+    if (this.currentCategoryLevel === 1) {
+      return "全部分类";
+    } else {
+      // 获取当前分类名称（categoryStack的最后一个元素）
+      const currentCategoryName = this.categoryStack[this.categoryStack.length - 1];
+      return `${currentCategoryName} - 支出分类`;
+    }
+  }
+
   generateColors(count) {
     const colors = [
       "#FF6384",
@@ -818,10 +826,10 @@ class AnalyticsPage {
     // 一级分类
     if (this.currentCategoryLevel === 1) {
       breadcrumbHtml =
-        '<span class="breadcrumb-item active" data-level="1">一级分类</span>';
+        '<span class="breadcrumb-item active" data-level="1"><i class="fas fa-home"></i></span>';
     } else {
       breadcrumbHtml =
-        '<span class="breadcrumb-item" data-level="1">一级分类</span>';
+        '<span class="breadcrumb-item" data-level="1"><i class="fas fa-home"></i></span>';
     }
 
     // 二级分类

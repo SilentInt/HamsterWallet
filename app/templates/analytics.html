@@ -144,8 +144,10 @@
       <div class="chart-container">
         <div class="chart-header">
           <h3 id="categoryChartTitle">支出分类</h3>
-          <div class="chart-controls">
-            <div class="chart-type-toggle">
+          <!-- 统一组件：图表控制面板，包含类型切换和面包屑导航 -->
+          <div class="chart-control-panel">
+            <!-- 左侧：图表类型切换器 -->
+            <div class="chart-type-switcher">
               <button id="pieChartBtn" class="chart-type-btn active" data-type="pie">
                 <i class="fas fa-chart-pie"></i>
                 <span>饼图</span>
@@ -155,9 +157,10 @@
                 <span>柱状图</span>
               </button>
             </div>
-            <div class="breadcrumb" id="categoryBreadcrumb">
+            <!-- 右侧：面包屑导航 -->
+            <nav class="breadcrumb-navigation" id="categoryBreadcrumb">
               <span class="breadcrumb-item active" data-level="1">一级分类</span>
-            </div>
+            </nav>
           </div>
         </div>
         <canvas id="categoryChart"></canvas>

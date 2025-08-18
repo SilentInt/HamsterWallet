@@ -363,124 +363,417 @@ html {
     font-weight: 600;
 }
 
-/* 图表控制区域 */
-.chart-controls {
+/* 图表控制面板 - 统一组件设计 */
+.chart-control-panel {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 1rem;
+    min-height: 40px;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 10px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    position: relative;
+    overflow: hidden;
 }
 
-/* 图表类型切换按钮 */
-.chart-type-toggle {
+.chart-control-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #3498db, #2ecc71, #3498db);
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
+/* 左侧：图表类型切换器 */
+.chart-type-switcher {
     display: flex;
-    gap: 0.5rem;
-    background: #f8f9fa;
+    gap: 0.25rem;
+    background: white;
     border-radius: 8px;
-    padding: 4px;
+    padding: 3px;
     border: 1px solid #dee2e6;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
 }
 
 .chart-type-btn {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 0.8rem;
     border: none;
     background: transparent;
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.85rem;
     color: #6c757d;
     font-weight: 500;
+    min-height: 32px;
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-type-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transition: left 0.5s ease;
+}
+
+.chart-type-btn:hover::before {
+    left: 100%;
 }
 
 .chart-type-btn:hover {
-    background: #e9ecef;
+    background: #f8f9fa;
     color: #495057;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .chart-type-btn.active {
-    background: #3498db;
+    background: linear-gradient(135deg, #3498db, #2980b9);
     color: white;
-    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
+    box-shadow: 0 3px 8px rgba(52, 152, 219, 0.3);
+    transform: translateY(-1px);
+}
+
+.chart-type-btn.active:hover {
+    background: linear-gradient(135deg, #2980b9, #3498db);
+    transform: translateY(-1px);
 }
 
 .chart-type-btn i {
     font-size: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.chart-type-btn.active i {
+    transform: scale(1.1);
+}
+
+/* 右侧：面包屑导航 */
+.breadcrumb-navigation {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+    flex-wrap: nowrap;
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
+    max-width: 60%;
+}
+
+.breadcrumb-item {
+    position: relative;
+    padding: 0.3rem 0.8rem;
+    background: white;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #dee2e6;
+    line-height: 1.2;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.breadcrumb-item::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -10px;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 8px 8px 8px 0;
+    border-color: transparent white transparent transparent;
+    z-index: 1;
+}
+
+.breadcrumb-item:first-child::before {
+    display: none;
+}
+
+.breadcrumb-item:hover {
+    background: #e3f2fd;
+    color: #1976d2;
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    border-color: #bbdefb;
+}
+
+.breadcrumb-item.active {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    cursor: default;
+    border-color: #2980b9;
+    box-shadow: 0 3px 8px rgba(52, 152, 219, 0.3);
+}
+
+.breadcrumb-item.active::before {
+    border-color: transparent #3498db transparent transparent;
+}
+
+.breadcrumb-item::after {
+    content: '›';
+    margin-left: 0.4rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: bold;
+    opacity: 0.7;
+}
+
+.breadcrumb-item:last-child::after {
+    display: none;
+}
+
+/* 面包屑图标样式 */
+.breadcrumb-item i {
+    font-size: 0.9rem;
+    line-height: 1;
+    margin-right: 0.2rem;
+}
+
+.breadcrumb-item.active i {
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* 移动端图表控制优化 */
 @media (max-width: 768px) {
-    .chart-controls {
-        flex-direction: column;
-        align-items: stretch;
+    .chart-control-panel {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: nowrap;
         gap: 0.75rem;
+        padding: 0.6rem 0.8rem;
+        min-height: 44px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     }
 
-    .chart-type-toggle {
-        justify-content: center;
+    .chart-type-switcher {
+        flex-shrink: 0;
+        gap: 0.2rem;
+        padding: 2px;
+        border-radius: 6px;
     }
 
     .chart-type-btn {
+        padding: 0.3rem 0.5rem;
+        min-height: 32px;
+        font-size: 0.8rem;
+        gap: 0.3rem;
+    }
+
+    .chart-type-btn span {
+        display: inline;
+        font-size: 0.75rem;
+    }
+
+    .breadcrumb-navigation {
+        justify-content: flex-end;
+        flex-wrap: nowrap;
+        gap: 0.25rem;
         flex: 1;
-        justify-content: center;
-        padding: 0.75rem;
+        min-width: 0;
+        max-width: 65%;
+    }
+
+    .breadcrumb-item {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 14px;
+        min-height: 30px;
+        max-width: 90px;
+    }
+
+    .breadcrumb-item i {
+        font-size: 0.8rem;
+        margin-right: 0.15rem;
+    }
+
+    .breadcrumb-item::after {
+        margin-left: 0.3rem;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-control-panel {
+        gap: 0.5rem;
+        padding: 0.5rem 0.6rem;
+        min-height: 40px;
+    }
+
+    .chart-type-switcher {
+        gap: 0.15rem;
+        padding: 2px;
+    }
+
+    .chart-type-btn {
+        padding: 0.25rem 0.4rem;
+        min-height: 28px;
+        font-size: 0.75rem;
+        gap: 0.25rem;
+    }
+
+    .chart-type-btn span {
+        font-size: 0.7rem;
+    }
+
+    .chart-type-btn i {
+        font-size: 0.9rem;
+    }
+
+    .breadcrumb-navigation {
+        gap: 0.2rem;
+        max-width: 70%;
+    }
+
+    .breadcrumb-item {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        min-height: 28px;
+        max-width: 80px;
+    }
+
+    .breadcrumb-item i {
+        font-size: 0.75rem;
+    }
+
+    .breadcrumb-item::after {
+        margin-left: 0.25rem;
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .chart-control-panel {
+        gap: 0.4rem;
+        padding: 0.4rem 0.5rem;
+        min-height: 36px;
     }
 
     .chart-type-btn span {
         display: none;
     }
 
-    .chart-type-btn i {
-        font-size: 1.2rem;
+    .chart-type-btn {
+        padding: 0.2rem 0.3rem;
+        min-width: 32px;
+        min-height: 26px;
+    }
+
+    .breadcrumb-navigation {
+        max-width: 75%;
+    }
+
+    .breadcrumb-item {
+        font-size: 0.65rem;
+        padding: 0.15rem 0.4rem;
+        min-height: 26px;
+        max-width: 70px;
+    }
+
+    .breadcrumb-item i {
+        font-size: 0.7rem;
+    }
+
+    .breadcrumb-item::after {
+        margin-left: 0.2rem;
+        font-size: 0.7rem;
     }
 }
-/* 面包屑导航 */
-.breadcrumb {
+
+/* 原有面包屑样式保持兼容性 - 已被新的 .breadcrumb-navigation 替代 */
+.breadcrumb-legacy {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.25rem;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     min-height: 32px;
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
 }
 
-.breadcrumb-item {
-    padding: 0.25rem 0.75rem;
-    background: #f8f9fa;
-    border-radius: 20px;
-    font-size: 0.85rem;
+.breadcrumb-legacy .breadcrumb-item {
+    padding: 0.2rem 0.6rem;
+    background: white;
+    border-radius: 14px;
+    font-size: 0.75rem;
     color: #6c757d;
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid #dee2e6;
-    line-height: 1.4;
-        min-height: 28px;
-        display: flex;
-        align-items: center;
+    line-height: 1.2;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.breadcrumb-item:hover {
+.breadcrumb-legacy .breadcrumb-item:hover {
     background: #e9ecef;
     color: #495057;
 }
 
-.breadcrumb-item.active {
+.breadcrumb-legacy .breadcrumb-item.active {
     background: #3498db;
     color: white;
     cursor: default;
 }
 
-.breadcrumb-item::after {
+.breadcrumb-legacy .breadcrumb-item::after {
     content: '>';
-    margin-left: 0.5rem;
+    margin-left: 0.3rem;
     color: #6c757d;
+    font-size: 0.7rem;
 }
 
-.breadcrumb-item:last-child::after {
+.breadcrumb-legacy .breadcrumb-item:last-child::after {
     display: none;
+}
+
+/* 面包屑图标样式 */
+.breadcrumb-legacy .breadcrumb-item i {
+    font-size: 0.8rem;
+    line-height: 1;
+}
+
+.breadcrumb-legacy .breadcrumb-item.active i {
+    color: white;
 }
 
 /* 商品列表 - 升级为紧凑型卡片布局 */
@@ -1372,6 +1665,49 @@ html {
     }
 
     /* 图表区域优化 */
+    .chart-controls {
+        gap: 0.4rem;
+        padding: 0.3rem;
+        min-height: 36px;
+    }
+
+    .chart-type-toggle {
+        height: 30px;
+        padding: 2px;
+        gap: 0.15rem;
+    }
+
+    .chart-type-btn {
+        padding: 0.2rem 0.35rem;
+        height: 26px;
+        min-width: 30px;
+    }
+
+    .chart-type-btn i {
+        font-size: 0.85rem;
+    }
+
+    /* 移动端面包屑进一步优化 */
+    .breadcrumb-navigation {
+        gap: 0.15rem;
+    }
+
+    .breadcrumb-navigation .breadcrumb-item {
+        font-size: 0.65rem;
+        padding: 0.1rem 0.4rem;
+        border-radius: 10px;
+        min-height: 24px;
+        max-width: 80px;
+    }
+
+    .breadcrumb-navigation .breadcrumb-item i {
+        font-size: 0.75rem;
+    }
+
+    .breadcrumb-navigation .breadcrumb-item::after {
+        margin-left: 0.2rem;
+        font-size: 0.55rem;
+    }
     .trend-container,
     .category-container {
         padding: 1rem;
@@ -1465,19 +1801,6 @@ html {
     .items-stats-right {
         flex-direction: column;
         gap: 4px;
-    }
-
-    /* 面包屑导航手机端 */
-    .breadcrumb {
-        flex-wrap: wrap;
-        gap: 0.25rem;
-    }
-
-    .breadcrumb-item {
-        font-size: 0.7rem;
-        padding: 0.15rem 0.5rem;
-        border-radius: 12px;
-        min-height: 24px;
     }
 
     /* 空状态手机端 */
@@ -2090,5 +2413,51 @@ canvas+div .chartjs-legend .legend-item.hidden {
         max-width: calc(50% - 4px);
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+}
+
+/* 极小屏幕优化 - 360px以下 */
+@media (max-width: 360px) {
+    .chart-controls {
+        gap: 0.25rem;
+        padding: 0.25rem;
+        min-height: 32px;
+    }
+
+    .chart-type-toggle {
+        height: 28px;
+        padding: 1px;
+        gap: 0.1rem;
+    }
+
+    .chart-type-btn {
+        padding: 0.15rem 0.25rem;
+        height: 24px;
+        min-width: 26px;
+    }
+
+    .chart-type-btn i {
+        font-size: 0.8rem;
+    }
+
+    .breadcrumb-navigation {
+        gap: 0.1rem;
+    }
+
+    .breadcrumb-navigation .breadcrumb-item {
+        font-size: 0.6rem;
+        padding: 0.08rem 0.3rem;
+        border-radius: 8px;
+        min-height: 20px;
+        max-width: 70px;
+    }
+
+    .breadcrumb-navigation .breadcrumb-item i {
+        font-size: 0.7rem;
+    }
+
+    .breadcrumb-navigation .breadcrumb-item::after {
+        margin-left: 0.15rem;
+        font-size: 0.5rem;
     }
 }
