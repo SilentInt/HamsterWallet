@@ -50,6 +50,11 @@ html {
         padding: 0.75rem;
         margin-bottom: 1rem;
     }
+    
+    .date-buttons .btn {
+        padding: 0.4rem 0.2rem;
+        font-size: 0.7rem;
+    }
 }
 .date-filter-container {
     display: flex;
@@ -1238,15 +1243,17 @@ html {
     }
 
     .date-buttons {
-        flex-direction: column;
-        gap: 0.5rem;
+        flex-direction: row;
+        gap: 0.25rem;
         margin-top: 0.75rem;
+        flex-wrap: wrap;
     }
 
     .date-buttons .btn {
-        max-width: 100%;
-        padding: 0.65rem;
-        font-size: 0.85rem;
+        flex: 1;
+        min-width: 0;
+        padding: 0.5rem 0.25rem;
+        font-size: 0.75rem;
         font-weight: 600;
     }
 

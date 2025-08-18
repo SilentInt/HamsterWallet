@@ -24,9 +24,19 @@ class AnalyticsPage {
       this.setAllTimeFilter();
     });
 
+    // 近7天筛选
+    document.getElementById("last7DaysFilter").addEventListener("click", () => {
+      this.setLast7DaysFilter();
+    });
+
     // 近一月筛选
     document.getElementById("resetFilter").addEventListener("click", () => {
       this.resetDateFilter();
+    });
+
+    // 近3月筛选
+    document.getElementById("last3MonthsFilter").addEventListener("click", () => {
+      this.setLast3MonthsFilter();
     });
 
     // 日期变化自动更新
@@ -76,6 +86,26 @@ class AnalyticsPage {
 
   resetDateFilter() {
     this.initDateFilter();
+    this.loadInitialData();
+  }
+
+  setLast7DaysFilter() {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 7);
+
+    document.getElementById("startDate").value = this.formatDate(startDate);
+    document.getElementById("endDate").value = this.formatDate(endDate);
+    this.loadInitialData();
+  }
+
+  setLast3MonthsFilter() {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(endDate.getMonth() - 3);
+
+    document.getElementById("startDate").value = this.formatDate(startDate);
+    document.getElementById("endDate").value = this.formatDate(endDate);
     this.loadInitialData();
   }
 
