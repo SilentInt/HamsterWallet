@@ -10,6 +10,7 @@ class AnalyticsPage {
     this.hiddenCategories = new Set(); // 添加隐藏分类集合
     this.chartType = "pie"; // 添加图表类型状态
     this.currentCategoryData = null; // 保存当前分类数据以便重绘
+    this.legendCollapsed = false; // 图例折叠状态
 
     this.init();
   }
@@ -59,6 +60,16 @@ class AnalyticsPage {
 
     document.getElementById("barChartBtn").addEventListener("click", () => {
       this.switchChartType("bar");
+    });
+
+    // 图例折叠切换
+    document.addEventListener("click", (e) => {
+      if (
+        e.target.closest(".chart-legend-header") ||
+        e.target.closest("#legendToggleBtn")
+      ) {
+        this.toggleLegend();
+      }
     });
   }
 
@@ -474,7 +485,7 @@ class AnalyticsPage {
             }
             ${
               item.is_special_offer
-                ? '<span class="analytics-special-offer-badge" title="特价商品">特价</span>'
+                ? '<span class="analytics-special-offer-badge">特价</span>'
                 : ""
             }
           </div>
@@ -485,14 +496,14 @@ class AnalyticsPage {
 
         <!-- 商品详细信息 -->
         <div class="analytics-item-details">
-          <div class="analytics-item-detail-row" title="店铺名称">
+          <div class="analytics-item-detail-row">
             <i class="fas fa-store"></i>
             <span>${item.store_name || "未知店铺"}</span>
           </div>
           ${
             item.special_info
               ? `
-            <div class="analytics-item-detail-row" title="特价信息">
+            <div class="analytics-item-detail-row">
               <i class="fas fa-percent"></i>
               <span>${item.special_info}</span>
             </div>
@@ -502,7 +513,7 @@ class AnalyticsPage {
           ${
             item.notes
               ? `
-            <div class="analytics-item-detail-row" title="商品备注">
+            <div class="analytics-item-detail-row">
               <i class="fas fa-comment"></i>
               <span>${
                 item.notes.length > 30
@@ -525,12 +536,12 @@ class AnalyticsPage {
           <div class="analytics-item-actions">
             <button class="btn btn-sm btn-outline-primary" onclick="window.analytics.viewReceipt('${
               item.receipt_id || ""
-            }')" title="查看小票">
+            }')">
               <i class="fas fa-receipt"></i>
             </button>
             <button class="btn btn-sm btn-outline-warning" onclick="window.analytics.editItem('${
               item.id || ""
-            }')" title="编辑商品">
+            }')">
               <i class="fas fa-edit"></i>
             </button>
           </div>
@@ -660,47 +671,7 @@ class AnalyticsPage {
             text: this.getChartTitle(categoryData),
           },
           legend: {
-            position: this.chartType === "pie" ? "bottom" : "top",
-            display: this.chartType === "pie", // 柱状图不显示图例
-            labels: {
-              generateLabels: (chart) => {
-                const data = chart.data;
-                if (data.labels.length && data.datasets.length) {
-                  return data.labels.map((label, index) => {
-                    const value = data.datasets[0].data[index];
-                    const percentage = categories[index].percentage;
-                    const isHidden = this.hiddenCategories.has(label);
-                    const meta = chart.getDatasetMeta(0);
-                    const actuallyHidden = meta.data[index].hidden;
-
-                    return {
-                      text: `${label} (${percentage}%)`,
-                      fillStyle: actuallyHidden
-                        ? "#ccc"
-                        : data.datasets[0].backgroundColor[index],
-                      strokeStyle: data.datasets[0].borderColor,
-                      lineWidth: data.datasets[0].borderWidth,
-                      index: index,
-                      hidden: actuallyHidden,
-                      fontColor: actuallyHidden ? "#999" : "#666",
-                      textDecoration: actuallyHidden ? "line-through" : "none",
-                    };
-                  });
-                }
-                return [];
-              },
-              filter: (legendItem, chartData) => {
-                // 保持所有图例项可见，即使分类被隐藏
-                return true;
-              },
-            },
-            onClick: (event, legendItem) => {
-              if (this.chartType === "pie") {
-                const category = labels[legendItem.index];
-                // 普通点击切换隐藏状态
-                this.toggleCategoryVisibility(category);
-              }
-            },
+            display: false, // 禁用内置图例
           },
           tooltip: {
             callbacks: {
@@ -741,13 +712,13 @@ class AnalyticsPage {
       chartConfig.options.scales = {
         x: {
           title: {
-            display: true,
+            display: false,
             text: "分类",
           },
         },
         y: {
           title: {
-            display: true,
+            display: false,
             text: "支出金额 (¥)",
           },
           beginAtZero: true,
@@ -756,6 +727,18 @@ class AnalyticsPage {
     }
 
     this.categoryChart = new Chart(ctx, chartConfig);
+
+    // 创建自定义图例（仅饼图显示）
+    if (this.chartType === "pie") {
+      this.createCustomLegend(categories, labels, colors);
+    } else {
+      // 柱状图时隐藏图例容器
+      const legendContainerParent =
+        document.getElementById("categoryLegend").parentElement;
+      if (legendContainerParent) {
+        legendContainerParent.style.display = "none";
+      }
+    }
 
     this.updateCategoryBreadcrumb(categoryData);
   }
@@ -788,6 +771,75 @@ class AnalyticsPage {
     this.showToast(`${action}分类 "${category}"`, "info");
   }
 
+  // 创建自定义图例
+  createCustomLegend(categories, labels, colors) {
+    const legendContainer = document.getElementById("categoryLegend");
+    const legendContainerParent = legendContainer.parentElement;
+
+    // 显示图例容器
+    if (legendContainerParent) {
+      legendContainerParent.style.display = "block";
+    }
+
+    const legendItems = categories
+      .map((category, index) => {
+        const isHidden = this.hiddenCategories.has(category.category);
+        const hiddenClass = isHidden ? "hidden" : "";
+
+        return `
+        <div class="legend-item ${hiddenClass}" 
+             data-category="${category.category}" 
+             data-index="${index}"
+             style="--item-color: ${colors[index]}">
+          <div class="legend-color" style="background-color: ${
+            colors[index]
+          }"></div>
+          <div class="legend-text">
+            <div>${category.category || "未分类"}</div>
+            <small style="color: #7f8c8d;">${category.percentage}% · ${
+          category.item_count
+        }件</small>
+          </div>
+          <div class="legend-value">
+            ¥${category.spending.jpy.toLocaleString()}
+          </div>
+        </div>
+      `;
+      })
+      .join("");
+
+    legendContainer.innerHTML = `
+      <div class="legend-items">
+        ${legendItems}
+      </div>
+    `;
+
+    // 添加图例项点击事件
+    legendContainer.querySelectorAll(".legend-item").forEach((item) => {
+      item.addEventListener("click", (e) => {
+        const category = item.getAttribute("data-category");
+        // 直接跳转到分类
+        this.onCategoryClick(category);
+      });
+    });
+  }
+
+  // 图例折叠切换
+  toggleLegend() {
+    const legendContainer = document.getElementById("categoryLegend");
+    const toggleBtn = document.getElementById("legendToggleBtn");
+
+    this.legendCollapsed = !this.legendCollapsed;
+
+    if (this.legendCollapsed) {
+      legendContainer.classList.add("collapsed");
+      toggleBtn.classList.add("collapsed");
+    } else {
+      legendContainer.classList.remove("collapsed");
+      toggleBtn.classList.remove("collapsed");
+    }
+  }
+
   getCategoryLevelName(level) {
     const names = { 1: "一级分类", 2: "二级分类", 3: "三级分类" };
     return names[level] || "分类";
@@ -798,7 +850,8 @@ class AnalyticsPage {
       return "全部分类";
     } else {
       // 获取当前分类名称（categoryStack的最后一个元素）
-      const currentCategoryName = this.categoryStack[this.categoryStack.length - 1];
+      const currentCategoryName =
+        this.categoryStack[this.categoryStack.length - 1];
       return `${currentCategoryName} - 支出分类`;
     }
   }
@@ -1034,7 +1087,7 @@ class AnalyticsPage {
             }
             ${
               item.is_special_offer
-                ? '<span class="analytics-special-offer-badge" title="特价商品">特价</span>'
+                ? '<span class="analytics-special-offer-badge">特价</span>'
                 : ""
             }
           </div>
@@ -1045,18 +1098,18 @@ class AnalyticsPage {
 
         <!-- 商品详细信息 -->
         <div class="analytics-item-details">
-          <div class="analytics-item-detail-row" title="店铺名称">
+          <div class="analytics-item-detail-row">
             <i class="fas fa-store"></i>
             <span>${item.store_name || "未知店铺"}</span>
           </div>
-          <div class="analytics-item-detail-row" title="购买日期">
+          <div class="analytics-item-detail-row">
             <i class="fas fa-calendar"></i>
             <span>${transactionDate}</span>
           </div>
           ${
             item.special_info
               ? `
-            <div class="analytics-item-detail-row" title="特价信息">
+            <div class="analytics-item-detail-row">
               <i class="fas fa-percent"></i>
               <span>${item.special_info}</span>
             </div>
@@ -1066,7 +1119,7 @@ class AnalyticsPage {
           ${
             item.notes
               ? `
-            <div class="analytics-item-detail-row" title="商品备注">
+            <div class="analytics-item-detail-row">
               <i class="fas fa-comment"></i>
               <span>${
                 item.notes.length > 30
@@ -1089,12 +1142,12 @@ class AnalyticsPage {
           <div class="analytics-item-actions">
             <button class="btn btn-sm btn-outline-primary" onclick="window.analytics.viewReceipt('${
               item.receipt_id || ""
-            }')" title="查看小票">
+            }')">
               <i class="fas fa-receipt"></i>
             </button>
             <button class="btn btn-sm btn-outline-warning" onclick="window.analytics.editItem('${
               item.id || ""
-            }')" title="编辑商品">
+            }')">
               <i class="fas fa-edit"></i>
             </button>
           </div>

@@ -163,7 +163,25 @@
             </nav>
           </div>
         </div>
-        <canvas id="categoryChart"></canvas>
+        <div class="chart-with-legend">
+          <div class="chart-main">
+            <canvas id="categoryChart"></canvas>
+            <div class="chart-legend-container">
+              <div class="chart-legend-header">
+                <h4 class="chart-legend-title">
+                  <i class="fas fa-list"></i>
+                  分类详情
+                </h4>
+                <button class="legend-toggle-btn" id="legendToggleBtn">
+                  <i class="fas fa-chevron-up"></i>
+                </button>
+              </div>
+              <div class="chart-legend" id="categoryLegend">
+                <!-- 自定义图例将在这里生成 -->
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="category-items-container">
         <h3 class="subsection-title">
