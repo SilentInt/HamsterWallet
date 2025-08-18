@@ -35,9 +35,11 @@ class AnalyticsPage {
     });
 
     // 近3月筛选
-    document.getElementById("last3MonthsFilter").addEventListener("click", () => {
-      this.setLast3MonthsFilter();
-    });
+    document
+      .getElementById("last3MonthsFilter")
+      .addEventListener("click", () => {
+        this.setLast3MonthsFilter();
+      });
 
     // 日期变化自动更新
     document.getElementById("startDate").addEventListener("change", () => {
@@ -253,13 +255,37 @@ class AnalyticsPage {
           },
           legend: {
             position: "top",
+            onClick: (e, legendItem, legend) => {
+              // 默认的图例点击行为
+              const index = legendItem.datasetIndex;
+              const chart = legend.chart;
+              const meta = chart.getDatasetMeta(index);
+
+              // 切换数据集的可见性
+              meta.hidden =
+                meta.hidden === null
+                  ? !chart.data.datasets[index].hidden
+                  : null;
+
+              // 更新坐标轴的显示状态
+              if (index === 0) {
+                // 日元数据集对应y轴
+                chart.options.scales.y.display = !meta.hidden;
+              } else if (index === 1) {
+                // 人民币数据集对应y1轴
+                chart.options.scales.y1.display = !meta.hidden;
+              }
+
+              // 重新渲染图表
+              chart.update();
+            },
           },
         },
         scales: {
           x: {
             display: true,
             title: {
-              display: true,
+              display: false, // 隐藏坐标轴名称
               text: "日期",
             },
           },
@@ -268,7 +294,7 @@ class AnalyticsPage {
             display: true,
             position: "left",
             title: {
-              display: true,
+              display: false, // 隐藏坐标轴名称
               text: "日元 (¥)",
               color: "#3498db",
             },
@@ -281,7 +307,7 @@ class AnalyticsPage {
             display: true,
             position: "right",
             title: {
-              display: true,
+              display: false, // 隐藏坐标轴名称
               text: "人民币 (￥)",
               color: "#e74c3c",
             },
@@ -614,16 +640,18 @@ class AnalyticsPage {
                     const isHidden = this.hiddenCategories.has(label);
                     const meta = chart.getDatasetMeta(0);
                     const actuallyHidden = meta.data[index].hidden;
-                    
+
                     return {
                       text: `${label} (${percentage}%)`,
-                      fillStyle: actuallyHidden ? '#ccc' : data.datasets[0].backgroundColor[index],
+                      fillStyle: actuallyHidden
+                        ? "#ccc"
+                        : data.datasets[0].backgroundColor[index],
                       strokeStyle: data.datasets[0].borderColor,
                       lineWidth: data.datasets[0].borderWidth,
                       index: index,
                       hidden: actuallyHidden,
-                      fontColor: actuallyHidden ? '#999' : '#666',
-                      textDecoration: actuallyHidden ? 'line-through' : 'none'
+                      fontColor: actuallyHidden ? "#999" : "#666",
+                      textDecoration: actuallyHidden ? "line-through" : "none",
                     };
                   });
                 }
@@ -632,23 +660,25 @@ class AnalyticsPage {
               filter: (legendItem, chartData) => {
                 // 保持所有图例项可见，即使分类被隐藏
                 return true;
-              }
+              },
             },
             onClick: (event, legendItem) => {
               const category = labels[legendItem.index];
-              
+
               // 普通点击切换隐藏状态
               this.toggleCategoryVisibility(category);
-            }
+            },
           },
           tooltip: {
             callbacks: {
               label: (context) => {
                 const category = categories[context.dataIndex];
                 const isHidden = this.hiddenCategories.has(context.label);
-                const status = isHidden ? ' [已隐藏]' : '';
+                const status = isHidden ? " [已隐藏]" : "";
                 return [
-                  `${context.label}: ¥${context.parsed.toLocaleString()}${status}`,
+                  `${
+                    context.label
+                  }: ¥${context.parsed.toLocaleString()}${status}`,
                   `占比: ${category.percentage}%`,
                   `商品数: ${category.item_count}件`,
                 ];
@@ -664,8 +694,9 @@ class AnalyticsPage {
           }
         },
         onHover: (event, activeElements) => {
-          event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
-        }
+          event.native.target.style.cursor =
+            activeElements.length > 0 ? "pointer" : "default";
+        },
       },
     });
 
@@ -679,24 +710,25 @@ class AnalyticsPage {
     } else {
       this.hiddenCategories.add(category);
     }
-    
+
     // 更新图表显示，隐藏/显示对应的数据段
     if (this.categoryChart && this.categoryChart.data) {
       const categoryIndex = this.categoryChart.data.labels.indexOf(category);
       if (categoryIndex !== -1) {
         const isHidden = this.hiddenCategories.has(category);
-        
+
         // 切换数据段的hidden状态
-        this.categoryChart.getDatasetMeta(0).data[categoryIndex].hidden = isHidden;
-        
+        this.categoryChart.getDatasetMeta(0).data[categoryIndex].hidden =
+          isHidden;
+
         // 更新图表
         this.categoryChart.update();
       }
     }
-    
+
     // 显示操作提示
-    const action = this.hiddenCategories.has(category) ? '隐藏' : '显示';
-    this.showToast(`${action}分类 "${category}"`, 'info');
+    const action = this.hiddenCategories.has(category) ? "隐藏" : "显示";
+    this.showToast(`${action}分类 "${category}"`, "info");
   }
 
   getCategoryLevelName(level) {
