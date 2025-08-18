@@ -8,6 +8,8 @@ class AnalyticsPage {
     this.currentParentCategory = null;
     this.categoryStack = [];
     this.hiddenCategories = new Set(); // 添加隐藏分类集合
+    this.chartType = "pie"; // 添加图表类型状态
+    this.currentCategoryData = null; // 保存当前分类数据以便重绘
 
     this.init();
   }
@@ -48,6 +50,15 @@ class AnalyticsPage {
 
     document.getElementById("endDate").addEventListener("change", () => {
       this.applyDateFilter();
+    });
+
+    // 图表类型切换
+    document.getElementById("pieChartBtn").addEventListener("click", () => {
+      this.switchChartType("pie");
+    });
+
+    document.getElementById("barChartBtn").addEventListener("click", () => {
+      this.switchChartType("bar");
     });
   }
 
@@ -566,6 +577,24 @@ class AnalyticsPage {
     `;
   }
 
+  // 切换图表类型
+  switchChartType(type) {
+    if (this.chartType === type) return;
+
+    this.chartType = type;
+
+    // 更新按钮状态
+    document.querySelectorAll(".chart-type-btn").forEach((btn) => {
+      btn.classList.remove("active");
+    });
+    document.querySelector(`[data-type="${type}"]`).classList.add("active");
+
+    // 重新绘制图表
+    if (this.currentCategoryData) {
+      this.updateCategoryChart(this.currentCategoryData);
+    }
+  }
+
   async loadCategoryData() {
     try {
       const params = this.getDateFilter();
@@ -594,6 +623,9 @@ class AnalyticsPage {
   }
 
   updateCategoryChart(categoryData) {
+    // 保存当前数据以便图表类型切换
+    this.currentCategoryData = categoryData;
+
     const ctx = document.getElementById("categoryChart").getContext("2d");
 
     if (this.categoryChart) {
@@ -605,8 +637,9 @@ class AnalyticsPage {
     const data = categories.map((item) => item.spending.jpy);
     const colors = this.generateColors(categories.length);
 
-    this.categoryChart = new Chart(ctx, {
-      type: "pie",
+    // 根据图表类型配置不同的选项
+    const chartConfig = {
+      type: this.chartType,
       data: {
         labels: labels,
         datasets: [
@@ -614,7 +647,7 @@ class AnalyticsPage {
             data: data,
             backgroundColor: colors,
             borderWidth: 2,
-            borderColor: "#fff",
+            borderColor: this.chartType === "bar" ? colors : "#fff",
           },
         ],
       },
@@ -629,7 +662,8 @@ class AnalyticsPage {
             )}支出分布`,
           },
           legend: {
-            position: "bottom",
+            position: this.chartType === "pie" ? "bottom" : "top",
+            display: this.chartType === "pie", // 柱状图不显示图例
             labels: {
               generateLabels: (chart) => {
                 const data = chart.data;
@@ -663,10 +697,11 @@ class AnalyticsPage {
               },
             },
             onClick: (event, legendItem) => {
-              const category = labels[legendItem.index];
-
-              // 普通点击切换隐藏状态
-              this.toggleCategoryVisibility(category);
+              if (this.chartType === "pie") {
+                const category = labels[legendItem.index];
+                // 普通点击切换隐藏状态
+                this.toggleCategoryVisibility(category);
+              }
             },
           },
           tooltip: {
@@ -675,10 +710,13 @@ class AnalyticsPage {
                 const category = categories[context.dataIndex];
                 const isHidden = this.hiddenCategories.has(context.label);
                 const status = isHidden ? " [已隐藏]" : "";
+
+                // 根据图表类型获取正确的数值
+                const value =
+                  this.chartType === "pie" ? context.parsed : context.parsed.y;
+
                 return [
-                  `${
-                    context.label
-                  }: ¥${context.parsed.toLocaleString()}${status}`,
+                  `${context.label}: ¥${value.toLocaleString()}${status}`,
                   `占比: ${category.percentage}%`,
                   `商品数: ${category.item_count}件`,
                 ];
@@ -698,7 +736,28 @@ class AnalyticsPage {
             activeElements.length > 0 ? "pointer" : "default";
         },
       },
-    });
+    };
+
+    // 为柱状图添加坐标轴配置
+    if (this.chartType === "bar") {
+      chartConfig.options.scales = {
+        x: {
+          title: {
+            display: true,
+            text: "分类",
+          },
+        },
+        y: {
+          title: {
+            display: true,
+            text: "支出金额 (¥)",
+          },
+          beginAtZero: true,
+        },
+      };
+    }
+
+    this.categoryChart = new Chart(ctx, chartConfig);
 
     this.updateCategoryBreadcrumb(categoryData);
   }

@@ -144,8 +144,20 @@
       <div class="chart-container">
         <div class="chart-header">
           <h3 id="categoryChartTitle">支出分类</h3>
-          <div class="breadcrumb" id="categoryBreadcrumb">
-            <span class="breadcrumb-item active" data-level="1">一级分类</span>
+          <div class="chart-controls">
+            <div class="chart-type-toggle">
+              <button id="pieChartBtn" class="chart-type-btn active" data-type="pie">
+                <i class="fas fa-chart-pie"></i>
+                <span>饼图</span>
+              </button>
+              <button id="barChartBtn" class="chart-type-btn" data-type="bar">
+                <i class="fas fa-chart-bar"></i>
+                <span>柱状图</span>
+              </button>
+            </div>
+            <div class="breadcrumb" id="categoryBreadcrumb">
+              <span class="breadcrumb-item active" data-level="1">一级分类</span>
+            </div>
           </div>
         </div>
         <canvas id="categoryChart"></canvas>
