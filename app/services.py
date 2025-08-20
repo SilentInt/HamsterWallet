@@ -839,6 +839,29 @@ class AnalyticsService:
             except (ValueError, TypeError):
                 pass
 
+        # 商品分类筛选
+        if category := args.get("category"):
+            category_term = f"%{category}%"
+            query = query.filter(
+                or_(
+                    Item.category_1.ilike(category_term),
+                    Item.category_2.ilike(category_term),
+                    Item.category_3.ilike(category_term),
+                )
+            )
+
+        # 店铺筛选
+        if store_name := args.get("store_name"):
+            query = query.filter(Receipt.store_name.ilike(f"%{store_name}%"))
+
+        if store_category := args.get("store_category"):
+            query = query.filter(Receipt.store_category.ilike(f"%{store_category}%"))
+
+        # 特价商品筛选
+        if "is_special_offer" in args:
+            is_special = args.get("is_special_offer", "").lower() == "true"
+            query = query.filter(Item.is_special_offer == is_special)
+
         # 获取所有数据
         results = query.all()
 
