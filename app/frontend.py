@@ -73,6 +73,12 @@ def analytics():
     return render_template("analytics.html")
 
 
+@frontend_bp.route("/data-mining")
+def data_mining():
+    """数据挖掘页"""
+    return render_template("data_mining.html")
+
+
 @frontend_bp.route("/config")
 def get_config():
     """提供前端配置信息"""

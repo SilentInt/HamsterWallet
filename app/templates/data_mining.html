@@ -1,0 +1,180 @@
+{% extends "base.html" %} {% block extra_css %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/data-mining.css') }}"
+/>
+{% endblock %} {% block content %}
+<div class="container">
+  <h1 class="page-title">
+    <i class="fas fa-search-plus"></i>
+    数据挖掘
+  </h1>
+
+  <!-- 日期筛选器 -->
+  <div class="date-filter-section">
+    <div class="date-filter-container">
+      <div class="date-input-group">
+        <label for="startDate">开始日期</label>
+        <input type="date" id="startDate" class="form-control" />
+      </div>
+      <div class="date-input-group">
+        <label for="endDate">结束日期</label>
+        <input type="date" id="endDate" class="form-control" />
+      </div>
+      <div class="date-buttons">
+        <button id="allTimeFilter" class="btn btn-info">
+          <i class="fas fa-infinity"></i>
+          <span>全部</span>
+        </button>
+        <button id="last3MonthsFilter" class="btn btn-secondary">
+          <i class="fas fa-calendar-alt"></i>
+          <span>近三月</span>
+        </button>
+        <button id="resetFilter" class="btn btn-secondary">
+          <i class="fas fa-calendar"></i>
+          <span>近一月</span>
+        </button>
+        <button id="last7DaysFilter" class="btn btn-secondary">
+          <i class="fas fa-calendar-week"></i>
+          <span>近一周</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主要内容区域 -->
+  <div class="main-content">
+    <!-- 左侧：分类选择器 -->
+    <div class="category-selector-section">
+      <h2 class="section-title">
+        <i class="fas fa-sitemap"></i>
+        分类选择器
+      </h2>
+
+      <!-- 面包屑导航 -->
+      <div class="breadcrumb-container">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb" id="categoryBreadcrumb">
+            <li class="breadcrumb-item">
+              <a href="#" data-level="0">全部分类</a>
+            </li>
+          </ol>
+        </nav>
+      </div>
+
+      <!-- 当前层级分类列表 -->
+      <div class="category-level-container">
+        <div class="category-level-header">
+          <h3 id="currentLevelTitle">一级分类</h3>
+          <div class="selection-counter">
+            已选择: <span id="selectedCount">0</span> 项
+          </div>
+        </div>
+        <div class="category-grid" id="categoryGrid">
+          <!-- 动态加载分类卡片 -->
+        </div>
+      </div>
+
+      <!-- 操作按钮 -->
+      <div class="category-actions">
+        <button class="btn btn-outline-secondary" id="backBtn" disabled>
+          <i class="fas fa-arrow-left"></i>
+          返回上级
+        </button>
+        <button class="btn btn-outline-primary" id="clearSelectionBtn">
+          <i class="fas fa-times"></i>
+          清空选择
+        </button>
+        <button class="btn btn-primary" id="addComparisonBtn" disabled>
+          <i class="fas fa-plus"></i>
+          添加对比
+        </button>
+      </div>
+
+      <!-- 对比组列表 -->
+      <div class="comparison-groups">
+        <h3>对比组</h3>
+        <div class="groups-list" id="comparisonGroups">
+          <!-- 动态添加对比组 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：图表显示区域 -->
+    <div class="chart-section">
+      <h2 class="section-title">
+        <i class="fas fa-chart-line"></i>
+        对比分析图表
+      </h2>
+
+      <!-- 图表容器 -->
+      <div class="chart-container">
+        <canvas id="comparisonChart"></canvas>
+      </div>
+
+      <!-- 数据点详情 -->
+      <div
+        class="data-point-details"
+        id="dataPointDetails"
+        style="display: none"
+      >
+        <h3>商品明细</h3>
+        <div class="details-header">
+          <div class="details-title" id="detailsTitle"></div>
+          <button class="btn btn-sm btn-outline-secondary" id="closeDetailsBtn">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="items-list" id="itemsList">
+          <!-- 动态显示商品列表 -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 对比组命名模态框 -->
+<div class="modal fade" id="nameComparisonModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">为对比组命名</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="comparisonName">对比组名称</label>
+          <input
+            type="text"
+            class="form-control"
+            id="comparisonName"
+            placeholder="请输入对比组名称"
+          />
+        </div>
+        <div class="selected-categories-preview">
+          <h6>已选择的分类:</h6>
+          <div id="selectedCategoriesPreview">
+            <!-- 显示选中的分类 -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          取消
+        </button>
+        <button type="button" class="btn btn-primary" id="confirmAddComparison">
+          确认添加
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="{{ url_for('static', filename='js/data-mining.js') }}"></script>
+{% endblock %}

@@ -11,7 +11,13 @@ from .schemas import (
     items_schema,
     export_records_schema,
 )
-from .services import ReceiptService, ItemService, ExportService, AnalyticsService
+from .services import (
+    ReceiptService,
+    ItemService,
+    ExportService,
+    AnalyticsService,
+    DataMiningService,
+)
 
 
 class ReceiptListResource(Resource):
@@ -294,3 +300,64 @@ class AnalyticsCategoryItemsResource(Resource):
             return {"data": items_data}
         except Exception as e:
             return {"message": f"获取分类商品数据失败: {str(e)}"}, 500
+
+
+class DataMiningCategoryTreeResource(Resource):
+    """数据挖掘分类树资源"""
+
+    def get(self):
+        """
+        获取分类树结构数据
+
+        查询参数:
+        - start_date: 开始日期 (ISO格式)
+        - end_date: 结束日期 (ISO格式)
+        """
+        try:
+            tree_data = DataMiningService.get_category_tree(request.args)
+            return {"data": tree_data}
+        except Exception as e:
+            return {"message": f"获取分类树数据失败: {str(e)}"}, 500
+
+
+class DataMiningComparisonResource(Resource):
+    """数据挖掘对比分析资源"""
+
+    def post(self):
+        """
+        提交分类选择并获取对比数据
+
+        请求体格式:
+        {
+            "selections": [
+                {
+                    "name": "选择名称",
+                    "categories": [
+                        {
+                            "name": "分类名称",
+                            "path": ["一级分类", "二级分类", "三级分类"]
+                        }
+                    ]
+                }
+            ],
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31"
+        }
+        """
+        try:
+            data = request.get_json()
+            if not data or "selections" not in data:
+                return {"message": "请求数据格式错误"}, 400
+
+            selections = data["selections"]
+            args = {
+                "start_date": data.get("start_date"),
+                "end_date": data.get("end_date"),
+            }
+
+            comparison_data = DataMiningService.get_categories_comparison_data(
+                selections, args
+            )
+            return {"data": comparison_data}
+        except Exception as e:
+            return {"message": f"获取对比数据失败: {str(e)}"}, 500

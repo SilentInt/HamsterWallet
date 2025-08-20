@@ -19,6 +19,8 @@ from .resources import (
     AnalyticsDailyItemsResource,
     AnalyticsCategoryResource,
     AnalyticsCategoryItemsResource,
+    DataMiningCategoryTreeResource,
+    DataMiningComparisonResource,
 )
 
 
@@ -76,5 +78,9 @@ def create_app(config_class=Config):
         AnalyticsCategoryItemsResource,
         "/api/analytics/category/<string:category>/items",
     )
+
+    # 数据挖掘API
+    api.add_resource(DataMiningCategoryTreeResource, "/api/data-mining/category-tree")
+    api.add_resource(DataMiningComparisonResource, "/api/data-mining/comparison")
 
     return app

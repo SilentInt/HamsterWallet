@@ -1153,3 +1153,263 @@ class AnalyticsService:
         items_data.sort(key=lambda x: x["price_jpy"] or 0, reverse=True)
 
         return items_data
+
+
+class DataMiningService:
+    """数据挖掘服务"""
+
+    @staticmethod
+    def get_category_tree(args):
+        """
+        获取分类树结构数据
+
+        Returns:
+            dict: 包含层级分类结构
+        """
+        from sqlalchemy import func
+
+        start_date = args.get("start_date")
+        end_date = args.get("end_date")
+
+        # 确保日期参数是字符串类型
+        if start_date is not None and not isinstance(start_date, str):
+            start_date = str(start_date)
+        if end_date is not None and not isinstance(end_date, str):
+            end_date = str(end_date)
+
+        # 基础查询
+        query = (
+            db.session.query(Item)
+            .join(Receipt)
+            .filter(Receipt.status == RecognitionStatus.SUCCESS)
+        )
+
+        if start_date and isinstance(start_date, str):
+            try:
+                start_datetime = datetime.fromisoformat(start_date)
+                query = query.filter(Receipt.transaction_time >= start_datetime)
+            except (ValueError, TypeError):
+                pass
+
+        if end_date and isinstance(end_date, str):
+            try:
+                end_datetime = datetime.fromisoformat(end_date)
+                query = query.filter(Receipt.transaction_time <= end_datetime)
+            except (ValueError, TypeError):
+                pass
+
+        # 获取所有分类数据
+        items = query.all()
+
+        # 构建分类树
+        category_tree = {}
+
+        for item in items:
+            cat1 = item.category_1 or "未分类"
+            cat2 = item.category_2 or "未分类"
+            cat3 = item.category_3 or "未分类"
+
+            if cat1 not in category_tree:
+                category_tree[cat1] = {
+                    "name": cat1,
+                    "level": 1,
+                    "path": [cat1],
+                    "total_cny": 0,
+                    "item_count": 0,
+                    "children": {},
+                }
+
+            if cat2 not in category_tree[cat1]["children"]:
+                category_tree[cat1]["children"][cat2] = {
+                    "name": cat2,
+                    "level": 2,
+                    "path": [cat1, cat2],
+                    "total_cny": 0,
+                    "item_count": 0,
+                    "children": {},
+                }
+
+            if cat3 not in category_tree[cat1]["children"][cat2]["children"]:
+                category_tree[cat1]["children"][cat2]["children"][cat3] = {
+                    "name": cat3,
+                    "level": 3,
+                    "path": [cat1, cat2, cat3],
+                    "total_cny": 0,
+                    "item_count": 0,
+                    "children": {},
+                }
+
+            # 累加金额和数量
+            price_cny = item.price_cny or 0
+            category_tree[cat1]["total_cny"] += price_cny
+            category_tree[cat1]["item_count"] += 1
+            category_tree[cat1]["children"][cat2]["total_cny"] += price_cny
+            category_tree[cat1]["children"][cat2]["item_count"] += 1
+            category_tree[cat1]["children"][cat2]["children"][cat3][
+                "total_cny"
+            ] += price_cny
+            category_tree[cat1]["children"][cat2]["children"][cat3]["item_count"] += 1
+
+        # 转换为列表格式
+        def convert_to_list(tree_dict):
+            result = []
+            for key, value in tree_dict.items():
+                node = {
+                    "name": value["name"],
+                    "level": value["level"],
+                    "path": value["path"],
+                    "total_cny": round(value["total_cny"], 2),
+                    "item_count": value["item_count"],
+                    "id": "_".join(value["path"]),  # 生成唯一ID
+                    "children": (
+                        convert_to_list(value["children"]) if value["children"] else []
+                    ),
+                }
+                result.append(node)
+
+            # 按金额排序
+            result.sort(key=lambda x: x["total_cny"], reverse=True)
+            return result
+
+        return convert_to_list(category_tree)
+
+    @staticmethod
+    def get_categories_comparison_data(category_selections, args):
+        """
+        获取多个分类选择的对比数据
+
+        Args:
+            category_selections: 分类选择列表，每个元素包含名称和路径列表
+            args: 查询参数
+
+        Returns:
+            dict: 包含时间序列对比数据
+        """
+        from sqlalchemy import func
+        from datetime import datetime
+
+        start_date = args.get("start_date")
+        end_date = args.get("end_date")
+
+        # 确保日期参数是字符串类型
+        if start_date is not None and not isinstance(start_date, str):
+            start_date = str(start_date)
+        if end_date is not None and not isinstance(end_date, str):
+            end_date = str(end_date)
+
+        comparison_data = []
+
+        for selection in category_selections:
+            selection_name = selection.get("name", "未命名选择")
+            categories = selection.get("categories", [])
+
+            if not categories:
+                continue
+
+            # 构建查询
+            query = (
+                db.session.query(Receipt, Item)
+                .join(Item)
+                .filter(
+                    Receipt.status == RecognitionStatus.SUCCESS,
+                    Receipt.transaction_time.isnot(None),
+                )
+            )
+
+            if start_date and isinstance(start_date, str):
+                try:
+                    start_datetime = datetime.fromisoformat(start_date)
+                    query = query.filter(Receipt.transaction_time >= start_datetime)
+                except (ValueError, TypeError):
+                    pass
+
+            if end_date and isinstance(end_date, str):
+                try:
+                    end_datetime = datetime.fromisoformat(end_date)
+                    query = query.filter(Receipt.transaction_time <= end_datetime)
+                except (ValueError, TypeError):
+                    pass
+
+            # 构建分类筛选条件
+            category_filters = []
+            for category in categories:
+                path = category.get("path", [])
+                if len(path) == 1:
+                    category_filters.append(Item.category_1 == path[0])
+                elif len(path) == 2:
+                    category_filters.append(
+                        and_(Item.category_1 == path[0], Item.category_2 == path[1])
+                    )
+                elif len(path) == 3:
+                    category_filters.append(
+                        and_(
+                            Item.category_1 == path[0],
+                            Item.category_2 == path[1],
+                            Item.category_3 == path[2],
+                        )
+                    )
+
+            if category_filters:
+                query = query.filter(or_(*category_filters))
+
+            # 获取数据并按日期分组
+            results = query.all()
+            daily_data = {}
+
+            for receipt, item in results:
+                if receipt.transaction_time:
+                    date_key = receipt.transaction_time.date()
+                    if date_key not in daily_data:
+                        daily_data[date_key] = {
+                            "total_cny": 0,
+                            "item_count": 0,
+                            "items": [],
+                        }
+
+                    daily_data[date_key]["total_cny"] += item.price_cny or 0
+                    daily_data[date_key]["item_count"] += 1
+                    daily_data[date_key]["items"].append(
+                        {
+                            "id": item.id,
+                            "receipt_id": item.receipt_id,
+                            "name_ja": item.name_ja,
+                            "name_zh": item.name_zh,
+                            "price_cny": item.price_cny,
+                            "category_1": item.category_1,
+                            "category_2": item.category_2,
+                            "category_3": item.category_3,
+                            "special_info": item.special_info,
+                            "is_special_offer": item.is_special_offer,
+                            "receipt_name": receipt.name,
+                            "store_name": receipt.store_name,
+                        }
+                    )
+
+            # 转换为时间序列数据
+            time_series = []
+            for date_key in sorted(daily_data.keys()):
+                data = daily_data[date_key]
+                time_series.append(
+                    {
+                        "date": date_key.isoformat(),
+                        "total_cny": round(data["total_cny"], 2),
+                        "item_count": data["item_count"],
+                        "items": sorted(
+                            data["items"],
+                            key=lambda x: x["price_cny"] or 0,
+                            reverse=True,
+                        ),
+                    }
+                )
+
+            comparison_data.append(
+                {
+                    "name": selection_name,
+                    "categories": categories,
+                    "time_series": time_series,
+                    "total_amount": sum(point["total_cny"] for point in time_series),
+                    "total_items": sum(point["item_count"] for point in time_series),
+                }
+            )
+
+        return comparison_data
