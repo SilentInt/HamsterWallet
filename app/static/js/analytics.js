@@ -394,6 +394,11 @@ class AnalyticsPage {
       0
     );
     const specialCount = items.filter((item) => item.is_special_offer).length;
+    
+    // 计算商品均价
+    const itemsWithPrice = items.filter(item => item.price_jpy > 0);
+    const avgPriceJpy = itemsWithPrice.length > 0 ? totalJpy / itemsWithPrice.length : 0;
+    const avgPriceCny = itemsWithPrice.length > 0 ? totalCny / itemsWithPrice.length : 0;
 
     const controlsHtml = `
       <div class="items-controls">
@@ -404,6 +409,8 @@ class AnalyticsPage {
           <div class="items-stats-right">
             <span>总计: <span class="items-stats-value">¥${totalJpy.toLocaleString()}</span></span>
             ${totalCny > 0 ? `<span>￥${totalCny.toLocaleString()}</span>` : ""}
+            <span>均价: <span class="items-stats-value">¥${Math.round(avgPriceJpy).toLocaleString()}</span></span>
+            ${avgPriceCny > 0 ? `<span>￥${Math.round(avgPriceCny).toLocaleString()}</span>` : ""}
             ${
               specialCount > 0
                 ? `<span>特价: <span class="items-stats-value">${specialCount}</span> 件</span>`
@@ -991,6 +998,11 @@ class AnalyticsPage {
       0
     );
     const specialCount = items.filter((item) => item.is_special_offer).length;
+    
+    // 计算商品均价
+    const itemsWithPrice = items.filter(item => item.price_jpy > 0);
+    const avgPriceJpy = itemsWithPrice.length > 0 ? totalJpy / itemsWithPrice.length : 0;
+    const avgPriceCny = itemsWithPrice.length > 0 ? totalCny / itemsWithPrice.length : 0;
 
     const controlsHtml = `
       <div class="items-controls">
@@ -1001,6 +1013,8 @@ class AnalyticsPage {
           <div class="items-stats-right">
             <span>总计: <span class="items-stats-value">¥${totalJpy.toLocaleString()}</span></span>
             ${totalCny > 0 ? `<span>￥${totalCny.toLocaleString()}</span>` : ""}
+            <span>均价: <span class="items-stats-value">¥${Math.round(avgPriceJpy).toLocaleString()}</span></span>
+            ${avgPriceCny > 0 ? `<span>￥${Math.round(avgPriceCny).toLocaleString()}</span>` : ""}
             ${
               specialCount > 0
                 ? `<span>特价: <span class="items-stats-value">${specialCount}</span> 件</span>`
