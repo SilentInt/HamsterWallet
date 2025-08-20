@@ -1214,6 +1214,13 @@ class AnalyticsPage {
     const searchInput = container.querySelector(".search-input");
     const sortSelect = container.querySelector(".sort-select");
 
+    // 记忆排序方式
+    const sortKey = "hamster_analytics_sort";
+    // 如果localStorage有记忆，自动设置下拉框
+    if (sortSelect && localStorage.getItem(sortKey)) {
+      sortSelect.value = localStorage.getItem(sortKey);
+    }
+
     // 搜索功能
     searchInput.addEventListener("input", (e) => {
       const query = e.target.value.toLowerCase().trim();
@@ -1223,6 +1230,7 @@ class AnalyticsPage {
     // 排序功能
     sortSelect.addEventListener("change", (e) => {
       const query = searchInput.value.toLowerCase().trim();
+      localStorage.setItem(sortKey, e.target.value); // 保存选择
       this.filterAndUpdateItems(container, items, query, e.target.value);
     });
 
