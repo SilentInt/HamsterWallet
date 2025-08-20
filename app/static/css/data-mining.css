@@ -82,7 +82,7 @@
 /* 主要内容区域 */
 .main-content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+grid-template-rows: auto 1fr;
   gap: 30px;
   min-height: 600px;
 }
@@ -265,12 +265,74 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: all 0.3s ease;
+  }
+  
+  .comparison-group-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #3498db;
+  }
+  
+  .comparison-group-item.saved {
+    border-left: 4px solid #27ae60;
+    background: linear-gradient(to right, #f8fff8, white);
+  }
+  
+  .comparison-group-item.editing {
+    border: 2px solid #f39c12;
+    background: linear-gradient(to right, #fff9e6, white);
+    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.2);
+  }
+  
+  .comparison-group-item .group-info {
+    flex: 1;
 }
 
 .comparison-group-item .group-name {
   font-weight: 600;
   color: #2c3e50;
   margin-bottom: 4px;
+  cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .comparison-group-item .group-name:hover {
+    background-color: #f8f9fa;
+  }
+  
+  .comparison-group-item .group-name i.fa-bookmark {
+    font-size: 0.8rem;
+  }
+  
+  .comparison-group-item .group-name-input {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+    border: 2px solid #f39c12;
+    background: white;
+    border-radius: 4px;
+  }
+  
+  .comparison-group-item .group-name-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(243, 156, 18, 0.25);
+    border-color: #f39c12;
+  }
+  
+  .comparison-group-item .group-name-edit {
+    border: 1px solid #3498db;
+    background: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
+    width: 100%;
+    min-width: 150px;
 }
 
 .comparison-group-item .group-categories {
@@ -281,11 +343,23 @@
 .comparison-group-item .group-actions {
   display: flex;
   gap: 5px;
+  align-items: center;
 }
 
 .comparison-group-item .btn {
   padding: 4px 8px;
   font-size: 0.8rem;
+  border-radius: 4px;
+    white-space: nowrap;
+  }
+  
+  .comparison-group-item .btn.save-edit {
+    padding: 6px 12px;
+    font-weight: 500;
+  }
+  
+  .comparison-group-item .btn.cancel-edit {
+    padding: 6px 12px;
 }
 
 /* 图表区域样式 */
@@ -404,11 +478,6 @@
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .main-content {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  
   .date-filter-container {
     flex-direction: column;
     align-items: stretch;

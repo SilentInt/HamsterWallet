@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import or_, and_
 from flask import current_app
 
-from .models import db, Receipt, Item, RecognitionStatus
+from .models import db, Receipt, Item, RecognitionStatus, ComparisonGroup
 from .ai_service import AIService
 from .file_service import FileService
 
@@ -1413,3 +1413,134 @@ class DataMiningService:
             )
 
         return comparison_data
+
+    @staticmethod
+    def save_comparison_group(name, categories):
+        """
+        保存对比组
+
+        Args:
+            name: 对比组名称
+            categories: 分类列表
+
+        Returns:
+            dict: 保存的对比组信息
+        """
+        import json
+
+        # 验证输入
+        if not name or not name.strip():
+            raise ValueError("对比组名称不能为空")
+
+        if not categories:
+            raise ValueError("至少需要选择一个分类")
+
+        # 创建新的对比组
+        comparison_group = ComparisonGroup(
+            name=name.strip(),
+            categories_data=json.dumps(categories, ensure_ascii=False),
+        )
+
+        db.session.add(comparison_group)
+        db.session.commit()
+
+        return {
+            "id": comparison_group.id,
+            "name": comparison_group.name,
+            "categories": categories,
+            "created_at": comparison_group.created_at.isoformat(),
+            "updated_at": comparison_group.updated_at.isoformat(),
+        }
+
+    @staticmethod
+    def get_all_comparison_groups():
+        """
+        获取所有保存的对比组
+
+        Returns:
+            list: 对比组列表
+        """
+        import json
+
+        groups = ComparisonGroup.query.order_by(ComparisonGroup.updated_at.desc()).all()
+
+        result = []
+        for group in groups:
+            try:
+                categories = json.loads(group.categories_data)
+                result.append(
+                    {
+                        "id": group.id,
+                        "name": group.name,
+                        "categories": categories,
+                        "created_at": group.created_at.isoformat(),
+                        "updated_at": group.updated_at.isoformat(),
+                    }
+                )
+            except (json.JSONDecodeError, TypeError):
+                # 数据损坏的对比组跳过，但记录错误
+                current_app.logger.warning(f"对比组 {group.id} 的数据格式错误")
+                continue
+
+        return result
+
+    @staticmethod
+    def update_comparison_group(group_id, **kwargs):
+        """
+        更新对比组
+
+        Args:
+            group_id: 对比组ID
+            **kwargs: 要更新的字段
+
+        Returns:
+            dict: 更新后的对比组信息
+        """
+        import json
+
+        group = ComparisonGroup.query.get_or_404(group_id)
+
+        # 更新名称
+        if "name" in kwargs:
+            name = kwargs["name"]
+            if not name or not name.strip():
+                raise ValueError("对比组名称不能为空")
+            group.name = name.strip()
+
+        # 更新分类
+        if "categories" in kwargs:
+            categories = kwargs["categories"]
+            if not categories:
+                raise ValueError("至少需要选择一个分类")
+            group.categories_data = json.dumps(categories, ensure_ascii=False)
+
+        db.session.commit()
+
+        # 返回更新后的数据
+        categories = json.loads(group.categories_data)
+        return {
+            "id": group.id,
+            "name": group.name,
+            "categories": categories,
+            "created_at": group.created_at.isoformat(),
+            "updated_at": group.updated_at.isoformat(),
+        }
+
+    @staticmethod
+    def delete_comparison_group(group_id):
+        """
+        删除对比组
+
+        Args:
+            group_id: 对比组ID
+
+        Returns:
+            bool: 是否删除成功
+        """
+        group = ComparisonGroup.query.get(group_id)
+        if not group:
+            return False
+
+        db.session.delete(group)
+        db.session.commit()
+        return True

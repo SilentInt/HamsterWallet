@@ -113,3 +113,24 @@ class DurableGood(db.Model):
     start_date: Mapped[Optional[datetime]] = mapped_column(Date)
     end_date: Mapped[Optional[datetime]] = mapped_column(Date)
     item: Mapped["Item"] = relationship("Item", back_populates="durable_info")
+
+
+class ComparisonGroup(db.Model):
+    __tablename__ = "comparison_groups"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    categories_data: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # JSON字符串存储分类数据
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def __init__(self, name, categories_data):
+        self.name = name
+        self.categories_data = categories_data

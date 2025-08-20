@@ -69,6 +69,98 @@ function iosConfirm(message, title = "确认", options = {}) {
   });
 }
 
+// 全局删除确认功能
+window.confirmDelete = function(options = {}) {
+  const {
+    title = "确认删除",
+    message = "您确定要删除这个项目吗？",
+    itemName = null,
+    onConfirm = null,
+    onCancel = null,
+    dangerText = "此操作无法撤销，请谨慎操作。"
+  } = options;
+
+  return new Promise((resolve) => {
+    let isResolved = false; // 防止多次 resolve
+    
+    const resolveOnce = (value) => {
+      if (!isResolved) {
+        isResolved = true;
+        resolve(value);
+      }
+    };
+
+    // 更新模态框内容
+    const modal = document.getElementById('confirmDeleteModal');
+    const messageElement = document.getElementById('confirmDeleteMessage');
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    
+    // 设置消息文本
+    let fullMessage = message;
+    if (itemName) {
+      fullMessage = `您确定要删除 "${itemName}" 吗？`;
+    }
+    messageElement.textContent = fullMessage;
+
+    // 清除之前的事件监听器
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+    // 绑定新的事件监听器
+    newConfirmBtn.addEventListener('click', async () => {
+      // 显示加载状态
+      const originalText = newConfirmBtn.innerHTML;
+      newConfirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 删除中...';
+      newConfirmBtn.disabled = true;
+
+      try {
+        let result = true;
+        if (onConfirm && typeof onConfirm === 'function') {
+          result = await onConfirm();
+        }
+        
+        // 恢复按钮状态
+        newConfirmBtn.innerHTML = originalText;
+        newConfirmBtn.disabled = false;
+        
+        // 隐藏模态框
+        const bootstrapModal = bootstrap.Modal.getInstance(modal);
+        if (bootstrapModal) {
+          bootstrapModal.hide();
+        }
+        
+        resolveOnce(result !== false); // 如果 onConfirm 返回 false，则认为删除失败
+      } catch (error) {
+        console.error('删除操作出错:', error);
+        // 恢复按钮状态
+        newConfirmBtn.innerHTML = originalText;
+        newConfirmBtn.disabled = false;
+        
+        // 隐藏模态框
+        const bootstrapModal = bootstrap.Modal.getInstance(modal);
+        if (bootstrapModal) {
+          bootstrapModal.hide();
+        }
+        
+        resolveOnce(false);
+      }
+    });
+
+    // 绑定取消事件 - 只在用户主动取消时触发
+    modal.addEventListener('hidden.bs.modal', () => {
+      if (onCancel && typeof onCancel === 'function') {
+        onCancel();
+      }
+      // 只有在没有被其他操作 resolve 的情况下才 resolve false
+      resolveOnce(false);
+    }, { once: true });
+
+    // 显示模态框
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+  });
+};
+
 // 加载状态管理器
 class LoadingManager {
   constructor() {

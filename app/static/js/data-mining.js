@@ -9,6 +9,7 @@ class DataMiningPage {
     this.comparisonGroups = [];
     this.chart = null;
     this.currentDateFilter = this.getDefaultDateFilter();
+    this.editingGroupId = null; // 当前正在编辑的对比组ID
 
     this.init();
   }
@@ -17,6 +18,7 @@ class DataMiningPage {
     this.initDateFilters();
     this.bindEvents();
     this.loadCategoryTree();
+    this.loadSavedComparisonGroups();
   }
 
   getDefaultDateFilter() {
@@ -390,6 +392,8 @@ class DataMiningPage {
 
   confirmAddComparison() {
     const name = document.getElementById("comparisonName").value.trim();
+    const autoSave = document.getElementById("autoSaveComparison").checked;
+    
     if (!name) {
       alert("请输入对比组名称");
       return;
@@ -399,7 +403,7 @@ class DataMiningPage {
       id: Date.now().toString(),
       name: name,
       categories: [...this.selectedCategories],
-      data: null, // 将通过API获取
+      data: null,
     };
 
     this.comparisonGroups.push(comparisonGroup);
@@ -408,6 +412,11 @@ class DataMiningPage {
 
     // 获取对比数据
     this.updateComparison(comparisonGroup);
+
+    // 如果选择自动保存，立即保存对比组
+    if (autoSave) {
+      this.saveComparisonGroup(comparisonGroup);
+    }
 
     // 关闭模态框
     const modalElement = document.getElementById("nameComparisonModal");
@@ -424,38 +433,336 @@ class DataMiningPage {
     this.comparisonGroups.forEach((group) => {
       const item = document.createElement("div");
       item.className = "comparison-group-item";
+      
+      // 判断是否为已保存的对比组和是否处于编辑状态
+      const isSaved = group.savedId !== undefined;
+      const isEditing = this.editingGroupId === group.id;
+      
+      // 添加状态相关的CSS类
+      if (isSaved) item.classList.add("saved");
+      if (isEditing) item.classList.add("editing");
+      
+      // 根据状态决定显示的按钮
+      let actionButtons = '';
+      
+      if (isEditing) {
+        // 编辑模式：显示保存和取消按钮
+        actionButtons = `
+          <button class="btn btn-success btn-sm save-edit" data-id="${group.id}" title="保存编辑">
+            <i class="fas fa-check"></i> 保存
+          </button>
+          <button class="btn btn-secondary btn-sm cancel-edit" data-id="${group.id}" title="取消编辑">
+            <i class="fas fa-times"></i> 取消
+          </button>
+        `;
+      } else {
+        // 普通模式：显示编辑、保存（如果未保存）、删除按钮
+        const saveButton = isSaved ? '' : `
+          <button class="btn btn-outline-success btn-sm save-group" data-id="${group.id}" title="保存对比组">
+            <i class="fas fa-save"></i>
+          </button>
+        `;
+        
+        actionButtons = `
+          ${saveButton}
+          <button class="btn btn-outline-primary btn-sm edit-group" data-id="${group.id}" title="编辑对比组">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button class="btn btn-outline-danger btn-sm remove-group" data-id="${group.id}" title="删除对比组">
+            <i class="fas fa-trash"></i>
+          </button>
+        `;
+      }
+      
+      // 名称显示：编辑模式下显示输入框，普通模式下显示文本
+      let nameDisplay;
+      if (isEditing) {
+        nameDisplay = `
+          <input type="text" class="form-control form-control-sm group-name-input" 
+                 value="${group.name}" data-id="${group.id}" placeholder="输入对比组名称">
+        `;
+      } else {
+        nameDisplay = `
+          <div class="group-name" data-id="${group.id}">
+            ${group.name}${isSaved ? ' <i class="fas fa-bookmark text-success" title="已保存"></i>' : ''}
+          </div>
+        `;
+      }
+      
       item.innerHTML = `
-                <div class="group-info">
-                    <div class="group-name">${group.name}</div>
-                    <div class="group-categories">
-                        ${group.categories.map((cat) => cat.name).join(", ")}
-                    </div>
-                </div>
-                <div class="group-actions">
-                    <button class="btn btn-outline-danger btn-sm remove-group" data-id="${
-                      group.id
-                    }">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `;
+        <div class="group-info">
+          ${nameDisplay}
+          <div class="group-categories">
+            ${group.categories.map((cat) => cat.name).join(", ")}
+            ${isEditing ? ' <small class="text-muted">(正在编辑分类选择)</small>' : ''}
+          </div>
+        </div>
+        <div class="group-actions">
+          ${actionButtons}
+        </div>
+      `;
 
-      // 绑定删除事件
-      const removeBtn = item.querySelector(".remove-group");
-      removeBtn.addEventListener("click", () => {
-        this.removeComparisonGroup(group.id);
-      });
-
+      // 绑定事件
+      this.bindGroupItemEvents(item, group, isEditing);
       container.appendChild(item);
     });
   }
 
-  removeComparisonGroup(groupId) {
-    this.comparisonGroups = this.comparisonGroups.filter(
-      (group) => group.id !== groupId
-    );
+  bindGroupItemEvents(item, group, isEditing) {
+    if (isEditing) {
+      // 编辑模式的事件绑定
+      const nameInput = item.querySelector(".group-name-input");
+      const saveEditBtn = item.querySelector(".save-edit");
+      const cancelEditBtn = item.querySelector(".cancel-edit");
+
+      // 输入框回车保存
+      nameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          this.saveGroupEdit(group.id);
+        } else if (e.key === "Escape") {
+          this.cancelGroupEdit();
+        }
+      });
+
+      // 保存编辑按钮
+      saveEditBtn.addEventListener("click", () => {
+        this.saveGroupEdit(group.id);
+      });
+
+      // 取消编辑按钮
+      cancelEditBtn.addEventListener("click", () => {
+        this.cancelGroupEdit();
+      });
+
+      // 自动聚焦到输入框
+      setTimeout(() => {
+        nameInput.focus();
+        nameInput.select();
+      }, 0);
+
+    } else {
+      // 普通模式的事件绑定
+      const saveBtn = item.querySelector(".save-group");
+      const editBtn = item.querySelector(".edit-group");
+      const removeBtn = item.querySelector(".remove-group");
+
+      // 保存对比组按钮
+      if (saveBtn) {
+        saveBtn.addEventListener("click", async () => {
+          const success = await this.saveComparisonGroup(group);
+          if (success) {
+            this.renderComparisonGroups();
+          }
+        });
+      }
+
+      // 编辑对比组按钮
+      editBtn.addEventListener("click", () => {
+        this.startEditGroup(group.id);
+      });
+
+      // 删除对比组按钮
+      removeBtn.addEventListener("click", () => {
+        // 使用全局确认删除模态框
+        window.confirmDelete({
+          title: "删除对比组",
+          message: `您确定要删除对比组 "${group.name}" 吗？`,
+          itemName: group.name,
+          onConfirm: async () => {
+            return await this.removeComparisonGroup(group.id);
+          }
+        });
+      });
+    }
+  }
+
+  startEditGroup(groupId) {
+    const group = this.comparisonGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    // 设置编辑状态
+    this.editingGroupId = groupId;
+
+    // 将对比组的分类还原到选择器中
+    this.selectedCategories = [...group.categories];
+
+    // 重新渲染分类选择器和对比组列表
+    this.renderCurrentLevel();
     this.renderComparisonGroups();
-    this.updateChart();
+    this.updateSelectionCounter();
+    this.updateAddComparisonButton();
+  }
+
+  async saveGroupEdit(groupId) {
+    const group = this.comparisonGroups.find(g => g.id === groupId);
+    if (!group) {
+      this.showError('找不到要编辑的对比组');
+      return;
+    }
+
+    // 获取新名称
+    const nameInput = document.querySelector(`.group-name-input[data-id="${groupId}"]`);
+    const newName = nameInput ? nameInput.value.trim() : "";
+
+    if (!newName) {
+      this.showError("对比组名称不能为空");
+      return;
+    }
+
+    // 更新分类（从选择器中获取）
+    const newCategories = [...this.selectedCategories];
+    if (newCategories.length === 0) {
+      this.showError("至少需要选择一个分类");
+      return;
+    }
+
+    // 保存原始数据以便失败时恢复
+    const originalName = group.name;
+    const originalCategories = [...group.categories];
+
+    // 显示保存中状态
+    this.showLoadingState(groupId, true);
+
+    let saveSuccess = false;
+
+    try {
+      // 更新对比组数据
+      group.name = newName;
+      group.categories = newCategories;
+
+      // 如果是已保存的对比组，同步到服务器
+      if (group.savedId) {
+        // 更新名称
+        const nameSuccess = await this.updateSavedGroupName(group, newName);
+        if (!nameSuccess) {
+          // 恢复原始数据
+          group.name = originalName;
+          group.categories = originalCategories;
+          saveSuccess = false;
+        } else {
+          // 同时更新分类数据到服务器
+          try {
+            const response = await fetch(`/api/data-mining/groups/${group.savedId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                name: newName,
+                categories: newCategories
+              })
+            });
+            
+            const result = await response.json();
+            if (!result.success) {
+              this.showError(result.message || '更新对比组失败');
+              // 恢复原始数据
+              group.name = originalName;
+              group.categories = originalCategories;
+              saveSuccess = false;
+            } else {
+              saveSuccess = true;
+            }
+          } catch (error) {
+            console.error('更新对比组出错:', error);
+            this.showError('网络错误，更新失败');
+            // 恢复原始数据
+            group.name = originalName;
+            group.categories = originalCategories;
+            saveSuccess = false;
+          }
+        }
+      } else {
+        // 未保存的对比组，直接标记为成功
+        saveSuccess = true;
+      }
+
+      if (saveSuccess) {
+        // 重新获取对比数据
+        await this.updateComparison(group);
+        this.showSuccess('对比组更新成功');
+      }
+
+    } catch (error) {
+      console.error('保存编辑出错:', error);
+      this.showError('保存编辑时发生错误');
+      
+      // 恢复原始数据
+      group.name = originalName;
+      group.categories = originalCategories;
+      saveSuccess = false;
+    } finally {
+      // 无论成功还是失败，都要清除编辑状态和更新界面
+      this.showLoadingState(groupId, false);
+      
+      // 结束编辑状态
+      this.editingGroupId = null;
+      this.selectedCategories = [];
+
+      // 重新渲染界面
+      this.renderCurrentLevel();
+      this.renderComparisonGroups();
+      this.updateSelectionCounter();
+      this.updateAddComparisonButton();
+      
+      if (saveSuccess) {
+        this.updateChart();
+      }
+    }
+  }
+
+  cancelGroupEdit() {
+    // 结束编辑状态
+    this.editingGroupId = null;
+    this.selectedCategories = [];
+
+    // 重新渲染界面
+    this.renderCurrentLevel();
+    this.renderComparisonGroups();
+    this.updateSelectionCounter();
+    this.updateAddComparisonButton();
+  }
+
+  async removeComparisonGroup(groupId) {
+    try {
+      const group = this.comparisonGroups.find(g => g.id === groupId);
+      if (!group) {
+        this.showError('找不到要删除的对比组');
+        return false;
+      }
+      
+      // 如果是已保存的对比组，先从服务器删除
+      if (group.savedId) {
+        const success = await this.deleteSavedGroup(group);
+        if (!success) {
+          return false; // 删除失败
+        }
+      }
+      
+      // 从本地列表中移除
+      this.comparisonGroups = this.comparisonGroups.filter(g => g.id !== groupId);
+      
+      // 如果删除的是正在编辑的对比组，清除编辑状态
+      if (this.editingGroupId === groupId) {
+        this.editingGroupId = null;
+        this.selectedCategories = [];
+        this.updateSelectionCounter();
+        this.updateAddComparisonButton();
+      }
+      
+      // 重新渲染界面
+      this.renderComparisonGroups();
+      this.updateChart();
+      
+      // 显示成功消息
+      this.showSuccess(`对比组 "${group.name}" 删除成功`);
+      return true;
+      
+    } catch (error) {
+      console.error('删除对比组出错:', error);
+      this.showError('删除对比组时发生错误');
+      return false;
+    }
   }
 
   async updateComparison(group) {
@@ -673,6 +980,155 @@ class DataMiningPage {
   hideDataPointDetails() {
     document.getElementById("dataPointDetails").style.display = "none";
   }
+  
+  async loadSavedComparisonGroups() {
+    try {
+      const response = await fetch('/api/data-mining/groups');
+      const result = await response.json();
+      
+      if (result.success) {
+        // 将保存的对比组转换为本地格式并添加到列表
+        const savedGroups = result.data.map(savedGroup => ({
+          id: `saved_${savedGroup.id}`,
+          savedId: savedGroup.id,
+          name: savedGroup.name,
+          categories: savedGroup.categories,
+          data: null,
+          isSaved: true
+        }));
+        
+        this.comparisonGroups.push(...savedGroups);
+        this.renderComparisonGroups();
+        
+        // 为保存的对比组加载数据
+        for (const group of savedGroups) {
+          await this.updateComparison(group);
+        }
+      } else {
+        this.showError(result.message || '获取保存的对比组失败');
+      }
+    } catch (error) {
+      console.error('加载保存的对比组出错:', error);
+      this.showError('网络错误，加载失败');
+    }
+  }
+  
+  async saveComparisonGroup(group) {
+    try {
+      const response = await fetch('/api/data-mining/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: group.name,
+          categories: group.categories
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // 更新本地组的保存状态
+        group.savedId = result.data.id;
+        group.id = `saved_${result.data.id}`;
+        group.isSaved = true;
+        
+        this.renderComparisonGroups();
+        this.showSuccess('对比组保存成功');
+        return true;
+      } else {
+        this.showError(result.message || '保存对比组失败');
+        return false;
+      }
+    } catch (error) {
+      console.error('保存对比组出错:', error);
+      this.showError('网络错误，保存失败');
+      return false;
+    }
+  }
+  
+  async updateSavedGroupName(group, newName) {
+    if (!group.savedId) {
+      group.name = newName;
+      return true;
+    }
+    
+    try {
+      const response = await fetch(`/api/data-mining/groups/${group.savedId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: newName })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        group.name = newName;
+        this.showSuccess('对比组名称更新成功');
+        return true;
+      } else {
+        this.showError(result.message || '更新对比组名称失败');
+        return false;
+      }
+    } catch (error) {
+      console.error('更新对比组名称出错:', error);
+      this.showError('网络错误，更新失败');
+      return false;
+    }
+  }
+  
+  async deleteSavedGroup(group) {
+    if (!group.savedId) return true;
+    
+    try {
+      const response = await fetch(`/api/data-mining/groups/${group.savedId}`, {
+        method: 'DELETE'
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        return true;
+      } else {
+        this.showError(result.message || '删除对比组失败');
+        return false;
+      }
+    } catch (error) {
+      console.error('删除对比组出错:', error);
+      this.showError('网络错误，删除失败');
+      return false;
+    }
+  }
+  
+  showSuccess(message) {
+    let successDiv = document.getElementById('success-message');
+    if (!successDiv) {
+      successDiv = document.createElement('div');
+      successDiv.id = 'success-message';
+      successDiv.className = 'alert alert-success alert-dismissible fade show';
+      successDiv.style.display = 'none';
+      successDiv.innerHTML = `
+                <span class="success-text"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+      document
+        .querySelector('.container')
+        .insertBefore(successDiv, document.querySelector('.date-filter-section'));
+    }
+    
+    successDiv.querySelector('.success-text').textContent = message;
+    successDiv.style.display = 'block';
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+      if (successDiv) {
+        successDiv.style.display = 'none';
+      }
+    }, 3000);
+  }
 
   showError(message) {
     // 创建或更新错误提示
@@ -699,6 +1155,30 @@ class DataMiningPage {
         errorDiv.style.display = "none";
       }
     }, 5000);
+  }
+
+  showLoadingState(groupId, isLoading) {
+    const saveButton = document.querySelector(`.save-edit[data-id="${groupId}"]`);
+    const cancelButton = document.querySelector(`.cancel-edit[data-id="${groupId}"]`);
+    const nameInput = document.querySelector(`.group-name-input[data-id="${groupId}"]`);
+    
+    if (saveButton) {
+      if (isLoading) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+      } else {
+        saveButton.disabled = false;
+        saveButton.innerHTML = '<i class="fas fa-check"></i> 保存';
+      }
+    }
+    
+    if (cancelButton) {
+      cancelButton.disabled = isLoading;
+    }
+    
+    if (nameInput) {
+      nameInput.disabled = isLoading;
+    }
   }
 }
 

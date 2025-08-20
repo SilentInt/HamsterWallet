@@ -1,6 +1,6 @@
 # app/resources.py
 from datetime import datetime, timezone
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from flask_restful import Resource, reqparse
 from .models import db, Receipt, Item
 from .services import convert_local_to_utc
@@ -361,3 +361,117 @@ class DataMiningComparisonResource(Resource):
             return {"data": comparison_data}
         except Exception as e:
             return {"message": f"获取对比数据失败: {str(e)}"}, 500
+
+
+class DataMiningGroupResource(Resource):
+    """数据挖掘对比组管理资源"""
+
+    def get(self):
+        """获取所有保存的对比组"""
+        try:
+            groups = DataMiningService.get_all_comparison_groups()
+            return {"success": True, "data": groups}
+        except Exception as e:
+            current_app.logger.error(f"获取对比组失败: {str(e)}")
+            return {"success": False, "message": "获取对比组失败"}, 500
+
+    def post(self):
+        """
+        保存新的对比组
+
+        请求体格式:
+        {
+            "name": "对比组名称",
+            "categories": [分类数组]
+        }
+        """
+        try:
+            data = request.get_json()
+            if not data:
+                return {"success": False, "message": "请求数据不能为空"}, 400
+
+            name = data.get("name", "").strip()
+            categories = data.get("categories", [])
+
+            # 验证数据
+            if not name:
+                return {"success": False, "message": "对比组名称不能为空"}, 400
+            if not categories:
+                return {"success": False, "message": "至少需要选择一个分类"}, 400
+
+            # 保存对比组
+            group_data = DataMiningService.save_comparison_group(name, categories)
+            return {
+                "success": True,
+                "message": "对比组保存成功",
+                "data": group_data,
+            }, 201
+
+        except ValueError as e:
+            return {"success": False, "message": str(e)}, 400
+        except Exception as e:
+            current_app.logger.error(f"保存对比组失败: {str(e)}")
+            return {"success": False, "message": "保存对比组失败"}, 500
+
+
+class DataMiningGroupDetailResource(Resource):
+    """数据挖掘对比组详情资源"""
+
+    def put(self, group_id):
+        """
+        更新对比组
+
+        请求体格式:
+        {
+            "name": "新名称",
+            "categories": [新分类数组]  // 可选
+        }
+        """
+        try:
+            data = request.get_json()
+            if not data:
+                return {"success": False, "message": "请求数据不能为空"}, 400
+
+            # 过滤空值和无效数据
+            update_data = {}
+
+            if "name" in data:
+                name = data["name"].strip() if data["name"] else ""
+                if name:
+                    update_data["name"] = name
+                else:
+                    return {"success": False, "message": "对比组名称不能为空"}, 400
+
+            if "categories" in data:
+                categories = data["categories"]
+                if categories:
+                    update_data["categories"] = categories
+                else:
+                    return {"success": False, "message": "至少需要选择一个分类"}, 400
+
+            if not update_data:
+                return {"success": False, "message": "没有提供要更新的数据"}, 400
+
+            # 更新对比组
+            group_data = DataMiningService.update_comparison_group(
+                group_id, **update_data
+            )
+            return {"success": True, "message": "对比组更新成功", "data": group_data}
+
+        except ValueError as e:
+            return {"success": False, "message": str(e)}, 400
+        except Exception as e:
+            current_app.logger.error(f"更新对比组失败: {str(e)}")
+            return {"success": False, "message": "更新对比组失败"}, 500
+
+    def delete(self, group_id):
+        """删除对比组"""
+        try:
+            success = DataMiningService.delete_comparison_group(group_id)
+            if success:
+                return {"success": True, "message": "对比组删除成功"}
+            else:
+                return {"success": False, "message": "对比组不存在"}, 404
+        except Exception as e:
+            current_app.logger.error(f"删除对比组失败: {str(e)}")
+            return {"success": False, "message": "删除对比组失败"}, 500
