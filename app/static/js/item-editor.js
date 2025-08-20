@@ -4,6 +4,7 @@ class ItemEditor {
     this.modalId = "editItemModal";
     this.currentItem = null;
     this.onSaveCallback = null;
+    this.categoryTree = null; // 缓存分类树数据
   }
 
   /**
@@ -11,11 +12,35 @@ class ItemEditor {
    * @param {Object} item - 商品数据
    * @param {Function} onSave - 保存成功回调函数
    */
-  show(item, onSave = null) {
+  async show(item, onSave = null) {
     this.currentItem = item;
     this.onSaveCallback = onSave;
+
+    // 如果没有分类树数据，先加载
+    if (!this.categoryTree) {
+      await this.loadCategoryTree();
+    }
+
     this.createModal();
     this.showModal();
+  }
+
+  /**
+   * 加载分类树数据
+   */
+  async loadCategoryTree() {
+    try {
+      const response = await fetch("/api/data-mining/category-tree");
+      if (!response.ok) {
+        throw new Error("获取分类数据失败");
+      }
+      const result = await response.json();
+      this.categoryTree = result.data || [];
+    } catch (error) {
+      console.error("加载分类树数据失败:", error);
+      this.showToast("加载分类数据失败，将使用输入框模式", "warning");
+      this.categoryTree = [];
+    }
   }
 
   /**
@@ -23,6 +48,54 @@ class ItemEditor {
    */
   createModal() {
     const item = this.currentItem;
+
+    // 根据分类数据是否可用选择使用下拉框还是输入框
+    const categoryHtml =
+      this.categoryTree && this.categoryTree.length > 0
+        ? `
+        <div class="row">
+          <div class="col-md-4">
+            <div class="mb-3 category-select-group">
+              <label class="form-label">
+                <i class="fas fa-tags me-1"></i>一级分类
+              </label>
+              <select class="form-select" name="category_1" id="editCategory1">
+                <option value="">请选择一级分类</option>
+                ${this.generateCategoryOptions(1, item.category_1)}
+              </select>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-3 category-select-group">
+              <label class="form-label">二级分类</label>
+              <select class="form-select" name="category_2" id="editCategory2" disabled>
+                <option value="">请选择二级分类</option>
+                ${this.generateCategoryOptions(
+                  2,
+                  item.category_2,
+                  item.category_1
+                )}
+              </select>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-3 category-select-group">
+              <label class="form-label">三级分类</label>
+              <select class="form-select" name="category_3" id="editCategory3" disabled>
+                <option value="">请选择三级分类</option>
+                ${this.generateCategoryOptions(
+                  3,
+                  item.category_3,
+                  item.category_1,
+                  item.category_2
+                )}
+              </select>
+            </div>
+          </div>
+        </div>
+      `
+        : this.generateCategoryInputs(item);
+
     const modalHtml = `
       <div class="modal fade" id="${
         this.modalId
@@ -112,34 +185,7 @@ class ItemEditor {
                   <div class="form-text">描述具体的特价活动内容</div>
                 </div>
                 
-                <div class="row">
-                  <div class="col-md-4">
-                    <div class="mb-3">
-                      <label class="form-label">
-                        <i class="fas fa-tags me-1"></i>一级分类
-                      </label>
-                      <input type="text" class="form-control" name="category_1" value="${
-                        item.category_1 || ""
-                      }" placeholder="例如：食品" />
-                    </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="mb-3">
-                      <label class="form-label">二级分类</label>
-                      <input type="text" class="form-control" name="category_2" value="${
-                        item.category_2 || ""
-                      }" placeholder="例如：零食" />
-                    </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="mb-3">
-                      <label class="form-label">三级分类</label>
-                      <input type="text" class="form-control" name="category_3" value="${
-                        item.category_3 || ""
-                      }" placeholder="例如：饼干" />
-                    </div>
-                  </div>
-                </div>
+                ${categoryHtml}
                 
                 <div class="mb-3">
                   <label class="form-label">
@@ -179,12 +225,120 @@ class ItemEditor {
   }
 
   /**
+   * 生成分类选项HTML
+   * @param {number} level - 分类级别 (1, 2, 3)
+   * @param {string} selectedValue - 当前选中的值
+   * @param {string} parentCategory1 - 一级分类 (用于生成二级分类选项)
+   * @param {string} parentCategory2 - 二级分类 (用于生成三级分类选项)
+   * @returns {string} 选项HTML字符串
+   */
+  generateCategoryOptions(
+    level,
+    selectedValue = "",
+    parentCategory1 = "",
+    parentCategory2 = ""
+  ) {
+    if (!this.categoryTree || this.categoryTree.length === 0) {
+      return "";
+    }
+
+    let options = "";
+
+    if (level === 1) {
+      // 一级分类：直接从根节点获取
+      this.categoryTree.forEach((category) => {
+        const selected = category.name === selectedValue ? "selected" : "";
+        options += `<option value="${category.name}" ${selected}>${category.name}</option>`;
+      });
+    } else if (level === 2 && parentCategory1) {
+      // 二级分类：从指定的一级分类中获取
+      const parentNode = this.categoryTree.find(
+        (cat) => cat.name === parentCategory1
+      );
+      if (parentNode && parentNode.children) {
+        parentNode.children.forEach((category) => {
+          const selected = category.name === selectedValue ? "selected" : "";
+          options += `<option value="${category.name}" ${selected}>${category.name}</option>`;
+        });
+      }
+    } else if (level === 3 && parentCategory1 && parentCategory2) {
+      // 三级分类：从指定的二级分类中获取
+      const parentNode1 = this.categoryTree.find(
+        (cat) => cat.name === parentCategory1
+      );
+      if (parentNode1 && parentNode1.children) {
+        const parentNode2 = parentNode1.children.find(
+          (cat) => cat.name === parentCategory2
+        );
+        if (parentNode2 && parentNode2.children) {
+          parentNode2.children.forEach((category) => {
+            const selected = category.name === selectedValue ? "selected" : "";
+            options += `<option value="${category.name}" ${selected}>${category.name}</option>`;
+          });
+        }
+      }
+    }
+
+    return options;
+  }
+
+  /**
+   * 生成分类输入框（回退模式）
+   * @param {Object} item - 商品数据
+   * @returns {string} 输入框HTML字符串
+   */
+  generateCategoryInputs(item) {
+    return `
+      <div class="alert alert-info d-flex align-items-center mb-3">
+        <i class="fas fa-info-circle me-2"></i>
+        <small>分类数据加载失败，已切换到输入框模式。您可以手动输入分类信息。</small>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="fas fa-tags me-1"></i>一级分类
+            </label>
+            <input type="text" class="form-control" name="category_1" value="${
+              item.category_1 || ""
+            }" placeholder="例如：食品" />
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="mb-3">
+            <label class="form-label">二级分类</label>
+            <input type="text" class="form-control" name="category_2" value="${
+              item.category_2 || ""
+            }" placeholder="例如：零食" />
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="mb-3">
+            <label class="form-label">三级分类</label>
+            <input type="text" class="form-control" name="category_3" value="${
+              item.category_3 || ""
+            }" placeholder="例如：饼干" />
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * 设置事件监听器
+   */
+  /**
    * 设置事件监听器
    */
   setupEventListeners() {
     const form = document.getElementById("editItemForm");
     const specialOfferCheckbox = document.getElementById("editIsSpecialPrice");
     const specialInfoGroup = document.getElementById("specialInfoGroup");
+
+    // 分类选择框（仅在分类数据可用时存在）
+    const category1Select = document.getElementById("editCategory1");
+    const category2Select = document.getElementById("editCategory2");
+    const category3Select = document.getElementById("editCategory3");
 
     // 特价商品切换事件
     specialOfferCheckbox.addEventListener("change", (e) => {
@@ -211,6 +365,87 @@ class ItemEditor {
         }, 300);
       }
     });
+
+    // 分类级联事件（仅在有分类选择框时设置）
+    if (category1Select && category2Select && category3Select) {
+      category1Select.addEventListener("change", (e) => {
+        const selectedCategory1 = e.target.value;
+
+        // 重置二级和三级分类
+        category2Select.innerHTML = '<option value="">请选择二级分类</option>';
+        category3Select.innerHTML = '<option value="">请选择三级分类</option>';
+        category2Select.disabled = !selectedCategory1;
+        category3Select.disabled = true;
+
+        if (selectedCategory1) {
+          // 填充二级分类选项
+          const category2Options = this.generateCategoryOptions(
+            2,
+            "",
+            selectedCategory1
+          );
+          category2Select.innerHTML += category2Options;
+        }
+      });
+
+      category2Select.addEventListener("change", (e) => {
+        const selectedCategory2 = e.target.value;
+        const selectedCategory1 = category1Select.value;
+
+        // 重置三级分类
+        category3Select.innerHTML = '<option value="">请选择三级分类</option>';
+        category3Select.disabled = !selectedCategory2;
+
+        if (selectedCategory2 && selectedCategory1) {
+          // 填充三级分类选项
+          const category3Options = this.generateCategoryOptions(
+            3,
+            "",
+            selectedCategory1,
+            selectedCategory2
+          );
+          category3Select.innerHTML += category3Options;
+        }
+      });
+
+      // 初始化分类选择状态
+      if (category1Select.value) {
+        category2Select.disabled = false;
+        const category2Options = this.generateCategoryOptions(
+          2,
+          "",
+          category1Select.value
+        );
+        if (category2Options) {
+          category2Select.innerHTML =
+            '<option value="">请选择二级分类</option>' + category2Options;
+
+          // 如果有预设的二级分类值，设置它
+          if (this.currentItem.category_2) {
+            category2Select.value = this.currentItem.category_2;
+
+            if (category2Select.value) {
+              category3Select.disabled = false;
+              const category3Options = this.generateCategoryOptions(
+                3,
+                "",
+                category1Select.value,
+                category2Select.value
+              );
+              if (category3Options) {
+                category3Select.innerHTML =
+                  '<option value="">请选择三级分类</option>' + category3Options;
+
+                // 如果有预设的三级分类值，设置它
+                if (this.currentItem.category_3) {
+                  category3Select.value = this.currentItem.category_3;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
     // 表单提交事件
     form.addEventListener("submit", (e) => {
@@ -341,6 +576,14 @@ class ItemEditor {
   }
 
   /**
+   * 重新加载分类树数据
+   */
+  async reloadCategoryTree() {
+    this.categoryTree = null;
+    await this.loadCategoryTree();
+  }
+
+  /**
    * 显示Toast通知
    */
   showToast(message, type = "info") {
@@ -354,6 +597,8 @@ class ItemEditor {
             ? "fa-exclamation-circle"
             : type === "success"
             ? "fa-check-circle"
+            : type === "warning"
+            ? "fa-exclamation-triangle"
             : "fa-info-circle"
         }"></i>
         <span>${message}</span>

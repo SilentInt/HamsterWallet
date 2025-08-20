@@ -1368,3 +1368,145 @@ nav[aria-label*="分页"],
     box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
   }
 }
+
+/* 级联分类选择框样式 */
+.category-select-group {
+  position: relative;
+}
+
+.category-select-group .form-select:disabled {
+  background-color: var(--ios-gray-1);
+  border-color: var(--ios-gray-3);
+  color: var(--ios-gray-5);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.category-select-group .form-select:not(:disabled) {
+  background-color: #fff;
+  border-color: var(--ios-blue);
+  transition: all 0.3s ease;
+}
+
+.category-select-group .form-select:not(:disabled):hover {
+  border-color: var(--ios-blue);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+}
+
+/* 级联选择指示器 */
+.category-cascade-indicator {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ios-green);
+  display: none;
+}
+
+.category-select-group .form-select:not(:disabled)+.category-cascade-indicator {
+  display: block;
+}
+
+/* Toast通知样式增强 */
+.toast-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: var(--ios-shadow-hover);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 280px;
+  max-width: 400px;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.toast-notification.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.toast-notification.toast-success {
+  border-left: 4px solid var(--ios-green);
+}
+
+.toast-notification.toast-error {
+  border-left: 4px solid var(--ios-red);
+}
+
+.toast-notification.toast-warning {
+  border-left: 4px solid var(--ios-orange);
+}
+
+.toast-notification.toast-info {
+  border-left: 4px solid var(--ios-blue);
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.toast-content i {
+  font-size: 1.1rem;
+}
+
+.toast-success .toast-content i {
+  color: var(--ios-green);
+}
+
+.toast-error .toast-content i {
+  color: var(--ios-red);
+}
+
+.toast-warning .toast-content i {
+  color: var(--ios-orange);
+}
+
+.toast-info .toast-content i {
+  color: var(--ios-blue);
+}
+
+/* 表单验证动画 */
+.shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-5px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+.is-invalid {
+  border-color: var(--ios-red) !important;
+  animation: shake 0.5s ease-in-out;
+}
