@@ -20,6 +20,29 @@ from .services import (
 )
 
 
+class ReceiptBatchUploadResource(Resource):
+    """批量上传小票图片并创建识别任务"""
+
+    def post(self):
+        """
+        批量上传小票图片
+
+        表单参数:
+        - images: 多个图片文件
+        - task_name: 可选的任务名称
+        """
+        # 获取多文件
+        image_files = request.files.getlist("images")
+        task_name = request.form.get("task_name", "")
+
+        if not image_files or len(image_files) == 0:
+            return {"message": "请上传至少一张小票图片"}, 400
+
+        # 调用服务层批量创建小票并触发识别
+        result = ReceiptService.batch_create_and_recognize(image_files, task_name)
+        return result
+
+
 class ReceiptListResource(Resource):
     def get(self):
         receipts, pagination = ReceiptService.get_all_receipts(request.args)

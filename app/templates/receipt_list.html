@@ -2,6 +2,58 @@
 
 {% block title %}小票列表 - 仓鼠记账{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* 拖拽上传区域样式优化 */
+    .upload-area {
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .upload-area:hover {
+        border-color: #007bff !important;
+        background-color: #f8f9ff !important;
+    }
+
+    .upload-area.drag-over {
+        border-color: #007bff !important;
+        background-color: #f8f9ff !important;
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+    }
+
+    /* 拖拽时的动画效果 */
+    .upload-area::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(0, 123, 255, 0.1), transparent);
+        transition: left 0.6s ease;
+    }
+
+    .upload-area.drag-over::before {
+        left: 100%;
+    }
+
+    /* 防止全局拖拽干扰 */
+    body.drag-active {
+        user-select: none;
+    }
+
+    body.drag-active * {
+        pointer-events: none;
+    }
+
+    body.drag-active .upload-area {
+        pointer-events: all;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="mb-4">
     <h1 class="page-title"><i class="fas fa-receipt me-3"></i>小票管理</h1>
@@ -11,9 +63,14 @@
         <div class="d-flex align-items-center">
             <span class="badge bg-primary me-2">总计 {{ pagination.total }} 张小票</span>
         </div>
-        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#uploadModal">
-            <i class="fas fa-plus me-2"></i>上传小票
-        </button>
+        <div>
+            <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fas fa-plus me-2"></i>上传小票
+            </button>
+            <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#batchUploadModal">
+                <i class="fas fa-upload me-2"></i>批量上传
+            </button>
+            </div>
     </div>
 </div>
 
@@ -258,11 +315,12 @@
                     
                     <div class="mb-4">
                         <label class="form-label fw-semibold">上传图片</label>
-                        <div class="upload-area" style="border: 2px dashed var(--ios-gray-3); border-radius: 12px; padding: 2rem; text-align: center; background-color: var(--ios-gray-1);">
+                        <div class="upload-area" id="singleDropArea"
+                            style="border: 2px dashed var(--ios-gray-3); border-radius: 12px; padding: 2rem; text-align: center; background-color: var(--ios-gray-1); cursor: pointer; transition: all 0.3s ease;">
                             <input type="file" class="form-control" name="image" accept="image/*" id="imageInput" style="display: none;">
                             <div id="uploadPlaceholder">
                                 <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                                <p class="text-muted mb-2">点击此处选择图片</p>
+                                <p class="text-muted mb-2">点击此处选择图片或拖拽图片到此区域</p>
                                 <p class="small text-muted">支持 JPG、PNG 等图片格式</p>
                             </div>
                             <div id="imagePreview" style="display: none;">
@@ -295,10 +353,255 @@
     </div>
 </div>
 
+<!-- 批量上传模态框 -->
+<div class="modal fade" id="batchUploadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius: 16px; border: none;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--ios-gray-2); border-radius: 16px 16px 0 0;">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-upload me-2 text-warning"></i>批量上传小票
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="batchUploadForm" enctype="multipart/form-data">
+                <div class="modal-body" style="padding: 2rem;">
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">任务名称</label>
+                        <input type="text" class="form-control" name="task_name" placeholder="可选，用于标识这批小票">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">选择多张图片</label>
+                        <div class="upload-area" id="batchDropArea"
+                            style="border: 2px dashed var(--ios-gray-3); border-radius: 12px; padding: 2rem; text-align: center; background-color: var(--ios-gray-1); cursor: pointer; transition: all 0.3s ease;">
+                            <input type="file" class="form-control" name="images" accept="image/*" id="batchImageInput"
+                                multiple style="display: none;">
+                            <div id="batchUploadPlaceholder">
+                                <i class="fas fa-images fa-3x text-muted mb-3"></i>
+                                <p class="text-muted mb-2">点击此处选择多张图片或拖拽图片到此区域</p>
+                                <p class="small text-muted">支持 JPG、PNG 等图片格式，可同时选择或拖拽多张</p>
+                            </div>
+                            <div id="batchImagePreview" style="display: none;">
+                                <div class="row g-2" id="batchPreviewContainer"></div>
+                                <p class="mt-2 mb-0">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        onclick="clearBatchImages()">重新选择</button>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>批量上传说明：</strong>每张图片将自动创建一张小票并进行AI识别，请确保图片清晰可读。
+                    </div>
+                </div>
+                <div class="modal-footer"
+                    style="border-top: 1px solid var(--ios-gray-2); border-radius: 0 0 16px 16px;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-upload me-2"></i>开始批量上传
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // 通用函数：防止默认拖拽行为
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // 全局拖拽检测
+    let dragCounter = 0;
+
+    document.addEventListener('dragenter', function (e) {
+        e.preventDefault();
+        dragCounter++;
+        document.body.classList.add('drag-active');
+    });
+
+    document.addEventListener('dragleave', function (e) {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter === 0) {
+            document.body.classList.remove('drag-active');
+        }
+    });
+
+    document.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dragCounter = 0;
+        document.body.classList.remove('drag-active');
+    });
+
+    // 批量上传相关函数
+    $(document).ready(function () {
+        // 批量图片选择
+        $('#batchUploadPlaceholder').click(function () {
+            $('#batchImageInput').click();
+        });
+
+        // 拖拽区域点击事件
+        $('#batchDropArea').click(function (e) {
+            if (e.target === this || e.target.closest('#batchUploadPlaceholder')) {
+                $('#batchImageInput').click();
+            }
+        });
+
+        $('#batchImageInput').change(function () {
+            const files = this.files;
+            if (files.length > 0) {
+                displayBatchImages(files);
+            }
+        });
+
+        // 拖拽上传功能
+        const dropArea = document.getElementById('batchDropArea');
+
+        // 防止默认的拖拽行为
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        // 拖拽进入和离开时的视觉反馈
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        // 处理文件拖放
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function highlight(e) {
+            dropArea.classList.add('drag-over');
+        }
+
+        function unhighlight(e) {
+            dropArea.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            // 过滤出图片文件
+            const imageFiles = Array.from(files).filter(file => {
+                return file.type.startsWith('image/');
+            });
+
+            if (imageFiles.length === 0) {
+                showToast('请拖拽图片文件', 'warning');
+                return;
+            }
+
+            if (imageFiles.length !== files.length) {
+                showToast(`已过滤非图片文件，共选择了 ${imageFiles.length} 张图片`, 'info');
+            }
+
+            // 将文件设置到 input 元素
+            const fileList = new DataTransfer();
+            imageFiles.forEach(file => fileList.items.add(file));
+            document.getElementById('batchImageInput').files = fileList.files;
+
+            displayBatchImages(imageFiles);
+        }
+
+        // 批量上传表单提交
+        $('#batchUploadForm').submit(async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const files = $('#batchImageInput')[0].files;
+
+            if (files.length === 0) {
+                showToast('请选择至少一张图片', 'warning');
+                return;
+            }
+
+            const submitBtn = $(this).find('button[type="submit"]');
+
+            try {
+                loadingManager.show(submitBtn, '正在批量上传...');
+
+                const response = await $.ajax({
+                    url: '/api/receipts/batch_upload',
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false
+                });
+
+                showToast(`批量上传成功！共处理 ${response.receipts.length} 张小票`, 'success');
+                $('#batchUploadModal').modal('hide');
+
+                // 重置表单
+                $('#batchUploadForm')[0].reset();
+                clearBatchImages();
+
+                // 延迟刷新页面显示新上传的小票
+                setTimeout(() => location.reload(), 1500);
+
+            } catch (xhr) {
+                const errorMsg = xhr.responseJSON?.message || '批量上传失败';
+                showToast('批量上传失败: ' + errorMsg, 'error');
+            } finally {
+                loadingManager.hide(submitBtn);
+            }
+        });
+    });
+
+    function displayBatchImages(files) {
+        const container = $('#batchPreviewContainer');
+        const placeholder = $('#batchUploadPlaceholder');
+        const preview = $('#batchImagePreview');
+
+        container.empty();
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                const col = $('<div class="col-md-3 col-sm-4 col-6"></div>');
+                const img = $('<img>').attr({
+                    src: e.target.result,
+                    class: 'img-thumbnail',
+                    style: 'width: 100%; height: 120px; object-fit: cover; border-radius: 8px;'
+                });
+                const fileName = $('<p class="small text-muted text-center mt-1 mb-0"></p>').text(file.name);
+
+                col.append(img).append(fileName);
+                container.append(col);
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        placeholder.hide();
+        preview.show();
+    }
+
+    function clearBatchImages() {
+        const imageInput = document.getElementById('batchImageInput');
+        const imagePreview = document.getElementById('batchImagePreview');
+        const uploadPlaceholder = document.getElementById('batchUploadPlaceholder');
+
+        imageInput.value = '';
+        uploadPlaceholder.style.display = 'block';
+        imagePreview.style.display = 'none';
+    }
+
 // 重新识别小票 - 使用增强工具
 async function reprocessReceipt(receiptId) {
     const confirmed = await iosConfirm(
@@ -386,33 +689,44 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 图片上传交互优化
     const imageInput = document.getElementById('imageInput');
-    const uploadArea = document.querySelector('.upload-area');
+    const singleDropArea = document.getElementById('singleDropArea');
     const imagePreview = document.getElementById('imagePreview');
     const uploadPlaceholder = document.getElementById('uploadPlaceholder');
 
-    if (uploadArea) {
-        uploadArea.addEventListener('click', () => imageInput.click());
+    if (singleDropArea) {
+        // 点击上传
+        singleDropArea.addEventListener('click', (e) => {
+            if (e.target === singleDropArea || e.target.closest('#uploadPlaceholder')) {
+                imageInput.click();
+            }
+        });
         
         // 拖拽上传功能
-        uploadArea.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            $(this).addClass('border-primary bg-light');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            singleDropArea.addEventListener(eventName, preventDefaults, false);
         });
         
-        uploadArea.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            $(this).removeClass('border-primary bg-light');
+        ['dragenter', 'dragover'].forEach(eventName => {
+            singleDropArea.addEventListener(eventName, function (e) {
+                singleDropArea.classList.add('drag-over');
+            }, false);
         });
         
-        uploadArea.addEventListener('drop', function(e) {
-            e.preventDefault();
-            $(this).removeClass('border-primary bg-light');
-            
+        ['dragleave', 'drop'].forEach(eventName => {
+            singleDropArea.addEventListener(eventName, function (e) {
+                singleDropArea.classList.remove('drag-over');
+            }, false);
+        });
+        
+        singleDropArea.addEventListener('drop', function (e) {
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 const file = files[0];
                 if (file.type.startsWith('image/')) {
-                    imageInput.files = files;
+                    // 创建新的 FileList
+                    const fileList = new DataTransfer();
+                    fileList.items.add(file);
+                    imageInput.files = fileList.files;
                     handleImagePreview(file);
                 } else {
                     showToast('请选择图片文件', 'warning');

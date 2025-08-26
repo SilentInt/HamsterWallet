@@ -42,6 +42,47 @@ def convert_local_to_utc(local_datetime, user_timezone=DEFAULT_USER_TIMEZONE):
 
 
 class ReceiptService:
+
+    @staticmethod
+    def batch_create_and_recognize(image_files, task_name=None):
+        """
+        批量上传图片并创建识别任务
+        Args:
+            image_files: 多个图片文件对象列表
+            task_name: 可选任务名称
+        Returns:
+            dict: 包含每个小票的ID、名称、状态
+        """
+        results = []
+        for idx, image_file in enumerate(image_files):
+            data = {
+                "name": f"批量小票_{task_name or ''}_{idx+1}",
+                "text_description": None,
+                "notes": None,
+                "transaction_time": None,
+                "store_name": None,
+                "store_category": None,
+            }
+            try:
+                receipt = ReceiptService.create_receipt(data, image_file)
+                results.append(
+                    {
+                        "id": receipt.id,
+                        "name": receipt.name,
+                        "status": receipt.status.name,
+                    }
+                )
+            except Exception as e:
+                results.append(
+                    {
+                        "id": None,
+                        "name": data["name"],
+                        "status": "FAILED",
+                        "error": str(e),
+                    }
+                )
+        return {"receipts": results, "task_name": task_name}
+
     """处理小票相关业务逻辑"""
 
     @staticmethod

@@ -10,6 +10,7 @@ from .resources import (
     ReceiptListResource,
     ReceiptResource,
     ReceiptRecognizeResource,
+    ReceiptBatchUploadResource,
     ReceiptItemListResource,
     ItemListResource,
     ItemResource,
@@ -54,6 +55,8 @@ def create_app(config_class=Config):
     # 注册 API 资源
     # 获取小票列表
     api.add_resource(ReceiptListResource, "/api/receipts")
+    # 批量上传小票
+    api.add_resource(ReceiptBatchUploadResource, "/api/receipts/batch_upload")
     # 获取小票详情
     api.add_resource(ReceiptResource, "/api/receipts/<int:receipt_id>")
     # 重新处理小票

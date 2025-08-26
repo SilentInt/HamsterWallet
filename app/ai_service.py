@@ -681,9 +681,11 @@ class AIService:
             if response_content is None:
                 current_app.logger.error("OpenAI API returned empty response")
                 return None
+            # print("AI Response:", response_content)
 
             # 清理和解析JSON
             json_str = response_content.strip().lstrip("```json").rstrip("```")
+            # print("Extracted JSON String:", json_str)
             return json.loads(json_str)
 
         except Exception as e:
