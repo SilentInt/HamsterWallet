@@ -96,6 +96,17 @@
         transform: translateY(-1px);
     }
 
+    .btn-merge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-merge:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-1px);
+        color: white;
+    }
+
     .btn-delete {
         background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
         color: white;
@@ -255,6 +266,50 @@
         font-size: 0.75rem;
         border-radius: 6px;
     }
+
+    /* 级联选择器样式 */
+    .category-select-group {
+        position: relative;
+    }
+
+    .category-select-group .form-label {
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .category-select-group .form-select {
+        border: 1.5px solid #e9ecef;
+        border-radius: 8px;
+        padding: 8px 12px;
+        transition: all 0.2s ease;
+        background-color: #fff;
+    }
+
+    .category-select-group .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+        background-color: #fff;
+    }
+
+    .category-select-group .form-select:disabled {
+        background-color: #f8f9fa;
+        border-color: #e9ecef;
+        color: #6c757d;
+    }
+
+    .cascade-selectors .col-md-6 {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .cascade-selectors .col-md-6:first-child {
+        padding-left: 15px;
+    }
+
+    .cascade-selectors .col-md-6:last-child {
+        padding-right: 15px;
+    }
 </style>
 {% endblock %}
 
@@ -325,6 +380,11 @@
             <button class="btn btn-action btn-add" onclick="openCreateModal(2, {{ category1.id }})" title="添加子分类">
                 <i class="fas fa-plus"></i>
             </button>
+            <button class="btn btn-action btn-merge"
+                onclick="showMergeModal({{ category1.id }}, '{{ category1.name }}', {{ category1.level }})"
+                title="合并分类">
+                <i class="fas fa-exchange-alt"></i>
+            </button>
             <button class="btn btn-action btn-delete"
                 onclick="deleteCategory({{ category1.id }}, '{{ category1.name }}')" title="删除分类">
                 <i class="fas fa-trash"></i>
@@ -350,6 +410,11 @@
                         onclick="openCreateModal(3, {{ category2.id }})" title="添加子分类">
                         <i class="fas fa-plus"></i>
                     </button>
+                    <button class="btn btn-action btn-merge btn-sm-custom"
+                        onclick="showMergeModal({{ category2.id }}, '{{ category2.name }}', {{ category2.level }})"
+                        title="合并分类">
+                        <i class="fas fa-exchange-alt"></i>
+                    </button>
                     <button class="btn btn-action btn-delete btn-sm-custom"
                         onclick="deleteCategory({{ category2.id }}, '{{ category2.name }}')" title="删除">
                         <i class="fas fa-trash"></i>
@@ -368,6 +433,11 @@
                         data-category-parent="{{ category3.parent_id or '' }}" onclick="editCategory(this)" title="编辑"
                         style="background: none; border: none; font-size: 0.7rem;">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm p-0 ms-1 text-white"
+                        onclick="showMergeModal({{ category3.id }}, '{{ category3.name }}', {{ category3.level }})"
+                        title="合并分类" style="background: none; border: none; font-size: 0.7rem;">
+                        <i class="fas fa-exchange-alt"></i>
                     </button>
                     <button class="btn btn-sm p-0 ms-1 text-white"
                         onclick="deleteCategory({{ category3.id }}, '{{ category3.name }}')" title="删除"
@@ -405,7 +475,7 @@
 
 <!-- 创建分类模态框 -->
 <div class="modal fade" id="createCategoryModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="createModalTitle">创建分类</h5>
@@ -420,10 +490,28 @@
                         <input type="text" class="form-control" id="createCategoryName" required>
                     </div>
                     <div class="mb-3" id="createParentCategoryGroup" style="display: none;">
-                        <label for="createParentCategory" class="form-label">父分类</label>
-                        <select class="form-select" id="createParentCategory">
-                            <option value="">选择父分类</option>
-                        </select>
+                        <label class="form-label">父分类选择</label>
+                        <div class="row cascade-selectors" id="createCascadeSelectors">
+                            <div class="col-md-6" id="createLevel1Group" style="display: none;">
+                                <div class="mb-3 category-select-group">
+                                    <label class="form-label">
+                                        <i class="fas fa-tags me-1"></i>一级分类
+                                    </label>
+                                    <select class="form-select" id="createParentLevel1">
+                                        <option value="">请选择一级分类</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="createLevel2Group" style="display: none;">
+                                <div class="mb-3 category-select-group">
+                                    <label class="form-label">二级分类</label>
+                                    <select class="form-select" id="createParentLevel2" disabled>
+                                        <option value="">请选择二级分类</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="createParentCategoryId" />
                     </div>
                     <div class="mb-3" id="createParentInfo" style="display: none;">
                         <label class="form-label">父分类</label>
@@ -441,7 +529,7 @@
 
 <!-- 编辑分类模态框 -->
 <div class="modal fade" id="editCategoryModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">编辑分类</h5>
@@ -450,15 +538,34 @@
             <form id="editCategoryForm">
                 <div class="modal-body">
                     <input type="hidden" id="editCategoryId">
+                    <input type="hidden" id="editCategoryLevel">
                     <div class="mb-3">
                         <label for="editCategoryName" class="form-label">分类名称</label>
                         <input type="text" class="form-control" id="editCategoryName" required>
                     </div>
                     <div class="mb-3" id="editParentCategoryGroup" style="display: none;">
-                        <label for="editParentCategory" class="form-label">父分类</label>
-                        <select class="form-select" id="editParentCategory">
-                            <option value="">选择父分类</option>
-                        </select>
+                        <label class="form-label">父分类选择</label>
+                        <div class="row cascade-selectors" id="editCascadeSelectors">
+                            <div class="col-md-6" id="editLevel1Group" style="display: none;">
+                                <div class="mb-3 category-select-group">
+                                    <label class="form-label">
+                                        <i class="fas fa-tags me-1"></i>一级分类
+                                    </label>
+                                    <select class="form-select" id="editParentLevel1">
+                                        <option value="">请选择一级分类</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="editLevel2Group" style="display: none;">
+                                <div class="mb-3 category-select-group">
+                                    <label class="form-label">二级分类</label>
+                                    <select class="form-select" id="editParentLevel2" disabled>
+                                        <option value="">请选择二级分类</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="editParentCategoryId" />
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -480,10 +587,37 @@
             </div>
             <div class="modal-body">
                 <p>确定要删除分类 "<span id="deleteCategoryName"></span>" 吗？</p>
+
+                <!-- 分类使用信息 -->
+                <div id="categoryUsageInfo" class="alert alert-info" style="display: none;">
+                    <h6><i class="fas fa-info-circle"></i> 分类使用情况</h6>
+                    <ul class="mb-0">
+                        <li>直接关联商品：<span id="directItemsCount">0</span> 个</li>
+                        <li>子分类数量：<span id="childrenCount">0</span> 个</li>
+                        <li>后代分类数量：<span id="descendantCount">0</span> 个</li>
+                        <li>后代分类关联商品：<span id="descendantItemsCount">0</span> 个</li>
+                        <li><strong>总计关联商品：<span id="totalItemsCount">0</span> 个</strong></li>
+                    </ul>
+                </div>
+
+                <!-- 警告信息 -->
                 <div id="deleteWarningMessage" class="alert alert-warning" style="display: none;">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span id="deleteWarningText"></span>
                 </div>
+
+                <!-- 商品引用警告 -->
+                <div id="itemsWarningMessage" class="alert alert-danger" style="display: none;">
+                    <i class="fas fa-ban"></i>
+                    <span id="itemsWarningText"></span>
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="showMergeOption()">
+                            <i class="fas fa-exchange-alt"></i> 合并到其他分类
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 级联删除选项 -->
                 <div id="deleteCascadeOption" style="display: none;">
                     <div class="form-check mt-3">
                         <input class="form-check-input" type="checkbox" id="cascadeDelete">
@@ -493,11 +627,57 @@
                         </label>
                     </div>
                 </div>
+
                 <p class="text-muted mt-2">此操作不可撤销。</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-danger" onclick="confirmDelete()">确定删除</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn"
+                    onclick="confirmDelete()">确定删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 分类合并模态框 -->
+<div class="modal fade" id="mergeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">合并分类</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>将分类 "<span id="sourceCategoryName"></span>" 合并到其他分类：</p>
+
+                <div class="mb-3">
+                    <label for="targetCategorySelect" class="form-label">选择目标分类</label>
+                    <select class="form-select" id="targetCategorySelect">
+                        <option value="">请选择目标分类</option>
+                    </select>
+                    <div class="form-text">所有商品和子分类将被迁移到目标分类</div>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="deleteSourceAfterMerge" checked>
+                    <label class="form-check-label" for="deleteSourceAfterMerge">
+                        合并后删除源分类
+                    </label>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    合并操作将：
+                    <ul class="mb-0 mt-2">
+                        <li>将所有商品的分类更改为目标分类</li>
+                        <li>将所有子分类的父分类更改为目标分类</li>
+                        <li>可选择是否删除源分类</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="confirmMerge()">确定合并</button>
             </div>
         </div>
     </div>
@@ -507,22 +687,257 @@
 {% block extra_js %}
 <script>
     let deleteTargetId = null;
+    let categoryTreeData = null; // 缓存分类树数据
+
+    // 加载分类树数据
+    async function loadCategoryTreeData() {
+        if (categoryTreeData) {
+            return categoryTreeData;
+        }
+
+        try {
+            const response = await fetch('/api/category/tree');
+            const result = await response.json();
+            if (result.success) {
+                categoryTreeData = result.data || [];
+            } else {
+                throw new Error(result.message || '获取分类数据失败');
+            }
+        } catch (error) {
+            console.error('加载分类树数据失败:', error);
+            categoryTreeData = [];
+        }
+
+        return categoryTreeData;
+    }
+
+    // 生成一级分类选项
+    function generateLevel1Options(treeData) {
+        if (!treeData || treeData.length === 0) {
+            return '';
+        }
+
+        let options = '';
+        treeData.forEach(category => {
+            options += `<option value="${category.id}">${category.name}</option>`;
+        });
+        return options;
+    }
+
+    // 生成二级分类选项
+    function generateLevel2Options(treeData, level1Id) {
+        if (!treeData || !level1Id) return '';
+
+        const level1Category = treeData.find(cat => cat.id == level1Id);
+        if (!level1Category || !level1Category.children) return '';
+
+        let options = '';
+        level1Category.children.forEach(category => {
+            options += `<option value="${category.id}">${category.name}</option>`;
+        });
+        return options;
+    }
+
+    // 设置级联选择器事件监听器
+    function setupCascadeListeners(prefix, targetLevel = null) {
+        console.log(`开始设置级联选择器监听器，前缀: ${prefix}, 目标级别: ${targetLevel}`);
+
+        const level1Select = document.getElementById(`${prefix}Level1`);
+        const level2Select = document.getElementById(`${prefix}Level2`);
+        const parentIdInput = document.getElementById(`${prefix}CategoryId`);
+
+        console.log(`查找元素:`, {
+            level1Select: level1Select ? '找到' : '未找到',
+            level2Select: level2Select ? '找到' : '未找到',
+            parentIdInput: parentIdInput ? '找到' : '未找到',
+            level1Id: `${prefix}Level1`,
+            level2Id: `${prefix}Level2`,
+            parentInputId: `${prefix}CategoryId`
+        });
+
+        if (!level1Select || !level2Select || !parentIdInput) {
+            console.error(`级联选择器元素未找到: ${prefix}Level1, ${prefix}Level2, ${prefix}CategoryId`);
+            return;
+        }
+
+        // 移除已存在的事件监听器（防止重复添加）
+        if (level1Select._cascadeHandler) {
+            level1Select.removeEventListener('change', level1Select._cascadeHandler);
+        }
+        if (level2Select._cascadeHandler) {
+            level2Select.removeEventListener('change', level2Select._cascadeHandler);
+        }
+
+        // 一级分类变化监听器
+        const level1ChangeHandler = async (e) => {
+            const level1Id = e.target.value;
+
+            console.log(`一级分类选择: ${level1Id}, 目标创建级别: ${targetLevel}`);
+
+            // 重置二级分类
+            level2Select.innerHTML = '<option value="">请选择二级分类</option>';
+            level2Select.disabled = true;
+
+            if (level1Id) {
+                const treeData = await loadCategoryTreeData();
+                const level2Options = generateLevel2Options(treeData, level1Id);
+
+                if (level2Options) {
+                    level2Select.innerHTML = '<option value="">请选择二级分类</option>' + level2Options;
+                    level2Select.disabled = false;
+                    console.log(`已加载二级分类选项`);
+                }
+
+                // 根据目标创建级别决定逻辑
+                if (targetLevel === 2) {
+                    // 创建二级分类：直接设置一级分类为父分类
+                    parentIdInput.value = level1Id;
+                    console.log(`创建二级分类：设置父分类ID为一级分类: ${level1Id}`);
+                } else if (targetLevel === 3) {
+                    // 创建三级分类：需要选择二级分类
+                    const level1Category = treeData.find(cat => cat.id == level1Id);
+                    if (!level1Category.children || level1Category.children.length === 0) {
+                        // 如果一级分类没有子分类，直接设置为父分类
+                        parentIdInput.value = level1Id;
+                        console.log(`一级分类无子分类，设置父分类ID为一级分类: ${level1Id}`);
+                    } else {
+                        // 等待选择二级分类
+                        parentIdInput.value = '';
+                        console.log(`一级分类有子分类，等待选择二级分类`);
+                    }
+                } else {
+                    // 编辑模式：按原逻辑处理
+                    const level1Category = treeData.find(cat => cat.id == level1Id);
+                    if (!level1Category.children || level1Category.children.length === 0) {
+                        parentIdInput.value = level1Id;
+                        console.log(`设置父分类ID为一级分类: ${level1Id}`);
+                    } else {
+                        parentIdInput.value = '';
+                        console.log(`一级分类有子分类，等待选择二级分类`);
+                    }
+                }
+            } else {
+                parentIdInput.value = '';
+                console.log(`清空父分类ID`);
+            }
+
+            console.log(`当前隐藏字段值: ${parentIdInput.value}`);
+        };
+
+        level1Select.addEventListener('change', level1ChangeHandler);
+
+        // 二级分类变化监听器
+        const level2ChangeHandler = (e) => {
+            const level2Id = e.target.value;
+            const level1Id = level1Select.value;
+
+            console.log(`二级分类选择: ${level2Id}, 一级分类: ${level1Id}`);
+
+            if (level2Id) {
+                parentIdInput.value = level2Id;
+                console.log(`设置父分类ID为二级分类: ${level2Id}`);
+            } else {
+                // 如果清空二级分类选择
+                if (targetLevel === 2) {
+                    // 创建二级分类时，回退到一级分类
+                    parentIdInput.value = level1Id || '';
+                    console.log(`创建二级分类：回退到一级分类: ${level1Id}`);
+                } else {
+                    parentIdInput.value = level1Id || '';
+                    console.log(`设置父分类ID为一级分类: ${level1Id}`);
+                }
+            }
+
+            console.log(`当前隐藏字段值: ${parentIdInput.value}`);
+        };
+
+        level2Select.addEventListener('change', level2ChangeHandler);
+
+        // 保存事件处理器引用以便后续清理
+        level1Select._cascadeHandler = level1ChangeHandler;
+        level2Select._cascadeHandler = level2ChangeHandler;
+
+        console.log(`级联选择器监听器设置完成`);
+    }
+
+    // 根据parent_id设置级联选择器的值
+    async function setCascadeFromParentId(prefix, parentId) {
+        if (!parentId) return;
+
+        const treeData = await loadCategoryTreeData();
+        const level1Select = document.getElementById(`${prefix}Level1`);
+        const level2Select = document.getElementById(`${prefix}Level2`);
+
+        // 查找parent分类在树中的位置
+        let targetCategory = null;
+        let level1Category = null;
+
+        // 遍历查找目标分类
+        for (const cat1 of treeData) {
+            if (cat1.id == parentId) {
+                targetCategory = cat1;
+                level1Category = cat1;
+                break;
+            }
+            if (cat1.children) {
+                for (const cat2 of cat1.children) {
+                    if (cat2.id == parentId) {
+                        targetCategory = cat2;
+                        level1Category = cat1;
+                        break;
+                    }
+                }
+                if (targetCategory) break;
+            }
+        }
+
+        if (targetCategory && level1Category) {
+            // 设置一级分类
+            level1Select.value = level1Category.id;
+            level1Select.dispatchEvent(new Event('change'));
+
+            // 如果目标是二级分类，需要设置二级分类
+            if (targetCategory.id != level1Category.id) {
+                setTimeout(() => {
+                    level2Select.value = targetCategory.id;
+                    level2Select.dispatchEvent(new Event('change'));
+                }, 100);
+            }
+        }
+    }
 
     // 打开创建分类模态框
-    function openCreateModal(level, parentId = null) {
+    async function openCreateModal(level, parentId = null) {
+        console.log(`打开创建分类模态框: level=${level}, parentId=${parentId}`);
+
         const modal = document.getElementById('createCategoryModal');
         const title = document.getElementById('createModalTitle');
         const levelInput = document.getElementById('createCategoryLevel');
         const parentIdInput = document.getElementById('createParentId');
         const parentGroup = document.getElementById('createParentCategoryGroup');
         const parentInfo = document.getElementById('createParentInfo');
-        const parentSelect = document.getElementById('createParentCategory');
         const nameInput = document.getElementById('createCategoryName');
+
+        const level1Group = document.getElementById('createLevel1Group');
+        const level2Group = document.getElementById('createLevel2Group');
+        const level1Select = document.getElementById('createParentLevel1');
+        const level2Select = document.getElementById('createParentLevel2');
+        const parentCategoryIdInput = document.getElementById('createParentCategoryId');
+
+        console.log(`模态框元素检查:`, {
+            modal: modal ? '找到' : '未找到',
+            level1Group: level1Group ? '找到' : '未找到',
+            level2Group: level2Group ? '找到' : '未找到',
+            level1Select: level1Select ? '找到' : '未找到',
+            level2Select: level2Select ? '找到' : '未找到',
+            parentCategoryIdInput: parentCategoryIdInput ? '找到' : '未找到'
+        });
 
         // 重置表单
         nameInput.value = '';
         levelInput.value = level;
         parentIdInput.value = parentId || '';
+        parentCategoryIdInput.value = '';
 
         // 设置标题
         const levelNames = { 1: '一级', 2: '二级', 3: '三级' };
@@ -532,6 +947,7 @@
             // 一级分类，隐藏父分类选择
             parentGroup.style.display = 'none';
             parentInfo.style.display = 'none';
+            console.log(`一级分类，隐藏父分类选择`);
         } else if (parentId) {
             // 有指定父分类，显示父分类信息
             parentGroup.style.display = 'none';
@@ -541,18 +957,64 @@
             findCategoryName(parentId).then(name => {
                 document.getElementById('createParentName').textContent = name;
             });
+
+            parentCategoryIdInput.value = parentId;
+            console.log(`指定父分类: ${parentId}`);
         } else {
-            // 需要选择父分类
+            // 需要选择父分类 - 使用级联选择器
             parentGroup.style.display = 'block';
             parentInfo.style.display = 'none';
 
-            // 加载父分类选项
-            loadParentCategoriesForCreate(level, parentSelect);
+            // 加载分类树数据
+            const treeData = await loadCategoryTreeData();
+            console.log(`加载到的分类树数据:`, treeData.length);
+
+            // 根据创建的级别显示对应的选择器
+            if (level === 2) {
+                // 创建二级分类，只显示一级分类选择
+                level1Group.style.display = 'block';
+                level2Group.style.display = 'none';
+
+                level1Select.innerHTML = '<option value="">请选择一级分类</option>' + generateLevel1Options(treeData);
+                level2Select.innerHTML = '<option value="">请选择二级分类</option>';
+                level2Select.disabled = true;
+
+                // 清空隐藏字段
+                parentCategoryIdInput.value = '';
+
+                console.log(`设置二级分类创建界面，一级分类选项数量: ${level1Select.options.length - 1}`);
+
+                // 延迟设置事件监听器，确保DOM已完全加载
+                setTimeout(() => {
+                    console.log('设置二级分类创建的级联监听器');
+                    setupCascadeListeners('createParent', 2);
+                }, 100);
+            } else if (level === 3) {
+                // 创建三级分类，显示一级和二级分类选择
+                level1Group.style.display = 'block';
+                level2Group.style.display = 'block';
+
+                level1Select.innerHTML = '<option value="">请选择一级分类</option>' + generateLevel1Options(treeData);
+                level2Select.innerHTML = '<option value="">请选择二级分类</option>';
+                level2Select.disabled = true;
+
+                // 清空隐藏字段
+                parentCategoryIdInput.value = '';
+
+                console.log(`设置三级分类创建界面，一级分类选项数量: ${level1Select.options.length - 1}`);
+
+                // 延迟设置事件监听器，确保DOM已完全加载
+                setTimeout(() => {
+                    console.log('设置三级分类创建的级联监听器');
+                    setupCascadeListeners('createParent', 3);
+                }, 100);
+            }
         }
 
         // 显示模态框
         const createModal = new bootstrap.Modal(modal);
         createModal.show();
+        console.log(`模态框已显示`);
     }
 
     // 查找分类名称
@@ -589,32 +1051,67 @@
     document.getElementById('createCategoryForm').addEventListener('submit', function (e) {
         e.preventDefault();
 
+        console.log('开始提交创建分类表单');
+
         const level = parseInt(document.getElementById('createCategoryLevel').value);
         const name = document.getElementById('createCategoryName').value;
-        const parentId = document.getElementById('createParentId').value ||
-            document.getElementById('createParentCategory').value || null;
+
+        // 获取父分类ID - 尝试多个来源
+        const parentIdFromFixed = document.getElementById('createParentId').value;
+        const parentIdFromCascade = document.getElementById('createParentCategoryId').value;
+        const parentId = parentIdFromFixed || parentIdFromCascade || null;
+
+        // 详细调试信息
+        console.log('表单数据收集:', {
+            level: level,
+            name: name,
+            parentIdFromFixed: parentIdFromFixed,
+            parentIdFromCascade: parentIdFromCascade,
+            finalParentId: parentId,
+            fixedFieldElement: document.getElementById('createParentId') ? '存在' : '不存在',
+            cascadeFieldElement: document.getElementById('createParentCategoryId') ? '存在' : '不存在',
+            cascadeFieldValue: document.getElementById('createParentCategoryId') ? document.getElementById('createParentCategoryId').value : 'N/A'
+        });
+
+        // 验证必需的父分类
+        if ((level === 2 || level === 3) && !parentId) {
+            const message = `${level === 2 ? '二' : '三'}级分类必须选择父分类`;
+            console.error(message);
+            alert(message);
+            return;
+        }
+
+        const requestData = {
+            name: name,
+            level: level,
+            parent_id: parentId
+        };
+
+        console.log('即将发送的请求数据:', requestData);
 
         fetch('/api/category', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                name: name,
-                level: level,
-                parent_id: parentId
-            })
+            body: JSON.stringify(requestData)
         })
-            .then(response => response.json())
+            .then(response => {
+                console.log('收到服务器响应，状态码:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('服务器响应数据:', data);
                 if (data.success) {
+                    console.log('创建成功，重新加载页面');
                     location.reload();
                 } else {
+                    console.error('创建失败:', data.message);
                     alert('创建失败: ' + data.message);
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('请求错误:', error);
                 alert('创建失败: ' + error.message);
             })
             .finally(() => {
@@ -624,7 +1121,7 @@
     });
 
     // 编辑分类
-    function editCategory(button) {
+    async function editCategory(button) {
         const categoryId = button.getAttribute('data-category-id');
         const categoryName = button.getAttribute('data-category-name');
         const categoryLevel = parseInt(button.getAttribute('data-category-level'));
@@ -632,19 +1129,61 @@
 
         // 填充编辑表单
         document.getElementById('editCategoryId').value = categoryId;
+        document.getElementById('editCategoryLevel').value = categoryLevel;
         document.getElementById('editCategoryName').value = categoryName;
 
-        // 处理父分类选择（所有级别的分类都可以选择父分类）
+        // 处理父分类选择（二级和三级分类可以选择父分类）
         const parentGroup = document.getElementById('editParentCategoryGroup');
-        const parentSelect = document.getElementById('editParentCategory');
+        const level1Group = document.getElementById('editLevel1Group');
+        const level2Group = document.getElementById('editLevel2Group');
+        const level1Select = document.getElementById('editParentLevel1');
+        const level2Select = document.getElementById('editParentLevel2');
+        const parentCategoryIdInput = document.getElementById('editParentCategoryId');
 
-        // 显示父分类选择框
-        parentGroup.style.display = 'block';
-        // 清空选项
-        parentSelect.innerHTML = '<option value="">设为顶级分类</option>';
+        if (categoryLevel === 1) {
+            // 一级分类不能选择父分类
+            parentGroup.style.display = 'none';
+        } else {
+            // 显示父分类选择器
+            parentGroup.style.display = 'block';
 
-        // 加载可选的父分类选项
-        loadParentCategoriesForEdit(categoryId, categoryParent, parentSelect);
+            // 加载分类树数据
+            const treeData = await loadCategoryTreeData();
+
+            if (categoryLevel === 2) {
+                // 二级分类，只显示一级分类选择
+                level1Group.style.display = 'block';
+                level2Group.style.display = 'none';
+
+                level1Select.innerHTML = '<option value="">设为顶级分类</option>' + generateLevel1Options(treeData);
+                level2Select.innerHTML = '<option value="">请选择二级分类</option>';
+                level2Select.disabled = true;
+
+                // 设置当前父分类
+                if (categoryParent) {
+                    level1Select.value = categoryParent;
+                    parentCategoryIdInput.value = categoryParent;
+                }
+
+            } else if (categoryLevel === 3) {
+                // 三级分类，显示一级和二级分类选择
+                level1Group.style.display = 'block';
+                level2Group.style.display = 'block';
+
+                level1Select.innerHTML = '<option value="">设为顶级分类</option>' + generateLevel1Options(treeData);
+                level2Select.innerHTML = '<option value="">请选择二级分类</option>';
+                level2Select.disabled = true;
+
+                // 设置当前父分类
+                if (categoryParent) {
+                    await setCascadeFromParentId('editParent', categoryParent);
+                    parentCategoryIdInput.value = categoryParent;
+                }
+            }
+
+            // 设置事件监听器
+            setupCascadeListeners('editParent');
+        }
 
         // 显示模态框
         const editModal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
@@ -652,8 +1191,8 @@
     }
 
     // 为编辑分类加载父分类选项
-        function loadParentCategoriesForEdit(categoryId, currentParent, selectElement) {
-            fetch(`/category/api/category/${categoryId}`)
+    function loadParentCategoriesForEdit(categoryId, currentParent, selectElement) {
+        fetch(`/category/api/category/${categoryId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -679,7 +1218,7 @@
 
         const categoryId = document.getElementById('editCategoryId').value;
         const categoryName = document.getElementById('editCategoryName').value;
-        const parentId = document.getElementById('editParentCategory').value || null;
+        const parentId = document.getElementById('editParentCategoryId').value || null;
 
         fetch(`/api/category/${categoryId}`, {
             method: 'PUT',
@@ -717,30 +1256,188 @@
         // 重置界面
         document.getElementById('deleteWarningMessage').style.display = 'none';
         document.getElementById('deleteCascadeOption').style.display = 'none';
+        document.getElementById('categoryUsageInfo').style.display = 'none';
+        document.getElementById('itemsWarningMessage').style.display = 'none';
         document.getElementById('cascadeDelete').checked = false;
+        document.getElementById('confirmDeleteBtn').disabled = false;
 
-        // 检查是否有子分类
-        fetch(`/api/category/${categoryId}`)
+        // 获取分类使用信息
+        fetch(`/api/category/${categoryId}/usage`)
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.data.children && data.data.children.length > 0) {
-                    // 有子分类，显示警告和级联删除选项
-                    const childrenCount = data.data.children.length;
-                    document.getElementById('deleteWarningText').textContent =
-                        `该分类下有 ${childrenCount} 个子分类。`;
-                    document.getElementById('deleteWarningMessage').style.display = 'block';
-                    document.getElementById('deleteCascadeOption').style.display = 'block';
+                if (data.success) {
+                    const usageInfo = data.data;
+
+                    // 显示使用信息
+                    document.getElementById('directItemsCount').textContent = usageInfo.direct_items_count;
+                    document.getElementById('childrenCount').textContent = usageInfo.children_count;
+                    document.getElementById('descendantCount').textContent = usageInfo.descendant_categories_count;
+                    document.getElementById('descendantItemsCount').textContent = usageInfo.descendant_items_count;
+                    document.getElementById('totalItemsCount').textContent = usageInfo.total_items_count;
+                    document.getElementById('categoryUsageInfo').style.display = 'block';
+
+                    // 检查是否有直接关联的商品
+                    if (usageInfo.direct_items_count > 0) {
+                        document.getElementById('itemsWarningText').textContent =
+                            `该分类被 ${usageInfo.direct_items_count} 个商品引用，无法直接删除。`;
+                        document.getElementById('itemsWarningMessage').style.display = 'block';
+                        document.getElementById('confirmDeleteBtn').disabled = true;
+                    }
+
+                    // 检查是否有子分类
+                    if (usageInfo.children_count > 0) {
+                        document.getElementById('deleteWarningText').textContent =
+                            `该分类下有 ${usageInfo.children_count} 个子分类。`;
+                        document.getElementById('deleteWarningMessage').style.display = 'block';
+                        document.getElementById('deleteCascadeOption').style.display = 'block';
+                    }
                 }
 
                 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
                 deleteModal.show();
             })
             .catch(error => {
-                console.error('Error checking category children:', error);
+                console.error('Error getting category usage info:', error);
                 // 即使检查失败也显示删除对话框
                 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
                 deleteModal.show();
             });
+    }
+
+    // 显示合并选项
+    function showMergeOption() {
+        // 关闭删除模态框
+        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+        deleteModal.hide();
+
+        // 准备合并模态框
+        document.getElementById('sourceCategoryName').textContent =
+            document.getElementById('deleteCategoryName').textContent;
+
+        // 加载目标分类选项
+        loadTargetCategories(deleteTargetId);
+
+        // 显示合并模态框
+        const mergeModal = new bootstrap.Modal(document.getElementById('mergeModal'));
+        mergeModal.show();
+    }
+
+    // 直接显示合并模态框（从按钮调用）
+    function showMergeModal(categoryId, categoryName, categoryLevel) {
+        deleteTargetId = categoryId;
+
+        // 设置源分类名称
+        document.getElementById('sourceCategoryName').textContent = categoryName;
+
+        // 加载目标分类选项
+        loadTargetCategories(categoryId);
+
+        // 显示合并模态框
+        const mergeModal = new bootstrap.Modal(document.getElementById('mergeModal'));
+        mergeModal.show();
+    }
+
+    // 加载目标分类选项
+    function loadTargetCategories(excludeCategoryId) {
+        const select = document.getElementById('targetCategorySelect');
+        select.innerHTML = '<option value="">请选择目标分类</option>';
+
+        // 获取当前分类信息以确定层级
+        fetch(`/api/category/${excludeCategoryId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const sourceLevel = data.data.level;
+
+                    // 获取同级分类作为目标选项
+                    fetch('/api/category/tree')
+                        .then(response => response.json())
+                        .then(treeData => {
+                            if (treeData.success) {
+                                const categories = flattenCategoryTree(treeData.data);
+                                const sameLevel = categories.filter(cat =>
+                                    cat.level === sourceLevel && cat.id !== excludeCategoryId
+                                );
+
+                                sameLevel.forEach(category => {
+                                    const option = document.createElement('option');
+                                    option.value = category.id;
+                                    option.textContent = getCategoryFullName(category, categories);
+                                    select.appendChild(option);
+                                });
+                            }
+                        });
+                }
+            });
+    }
+
+    // 确认合并
+    function confirmMerge() {
+        const targetCategoryId = document.getElementById('targetCategorySelect').value;
+        const deleteSource = document.getElementById('deleteSourceAfterMerge').checked;
+
+        if (!targetCategoryId) {
+            alert('请选择目标分类');
+            return;
+        }
+
+        const requestData = {
+            source_category_id: deleteTargetId,
+            target_category_id: parseInt(targetCategoryId),
+            delete_source: deleteSource
+        };
+
+        fetch('/api/category/merge', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('分类合并成功！');
+                    location.reload();
+                } else {
+                    alert('合并失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error merging categories:', error);
+                alert('合并失败: ' + error.message);
+            });
+
+        // 关闭模态框
+        const mergeModal = bootstrap.Modal.getInstance(document.getElementById('mergeModal'));
+        mergeModal.hide();
+    }
+
+    // 辅助函数：扁平化分类树
+    function flattenCategoryTree(tree) {
+        const result = [];
+
+        function flatten(categories, parentPath = '') {
+            categories.forEach(category => {
+                const fullPath = parentPath ? `${parentPath} > ${category.name}` : category.name;
+                result.push({
+                    ...category,
+                    fullPath: fullPath
+                });
+
+                if (category.children && category.children.length > 0) {
+                    flatten(category.children, fullPath);
+                }
+            });
+        }
+
+        flatten(tree);
+        return result;
+    }
+
+    // 辅助函数：获取分类完整名称
+    function getCategoryFullName(category, allCategories) {
+        return category.fullPath || category.name;
     }
 
     function confirmDelete() {

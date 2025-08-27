@@ -85,18 +85,13 @@ class Item(db.Model):
     is_special_offer: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )  # 是否特价商品
-    category_1: Mapped[Optional[str]] = mapped_column(
-        String(50), nullable=True
-    )  # 新增：一级分类
-    category_2: Mapped[Optional[str]] = mapped_column(
-        String(50), nullable=True
-    )  # 新增：二级分类
-    category_3: Mapped[Optional[str]] = mapped_column(
-        String(50), nullable=True
-    )  # 新增：三级分类
+    category_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("categories.id"), nullable=True
+    )  # 商品分类外键（指向最后一级分类）
     notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     receipt: Mapped["Receipt"] = relationship("Receipt", back_populates="items")
+    category: Mapped[Optional["Category"]] = relationship("Category")
     durable_info: Mapped[Optional["DurableGood"]] = relationship(
         "DurableGood",
         uselist=False,

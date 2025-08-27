@@ -7,6 +7,7 @@ from sqlalchemy import or_, and_
 from flask import current_app
 
 from .models import db, Receipt, Item, RecognitionStatus, ComparisonGroup
+from .category_models import Category
 from .ai_service import AIService
 from .file_service import FileService
 
@@ -332,9 +333,7 @@ class ReceiptService:
                 new_item.name_zh = item_data.get("name_zh")
                 new_item.price_jpy = item_data.get("price_jpy")
                 new_item.price_cny = item_data.get("price_cny")
-                new_item.category_1 = item_data.get("category_1")
-                new_item.category_2 = item_data.get("category_2")
-                new_item.category_3 = item_data.get("category_3")
+                new_item.category_id = item_data.get("category_id")
 
                 # 处理特价信息
                 special_info = item_data.get("special_info")
@@ -364,9 +363,7 @@ class ItemService:
         ai_fields = [
             "name_ja",
             "name_zh",
-            "category_1",
-            "category_2",
-            "category_3",
+            "category_id",
             "price_jpy",
             "price_cny",
             "special_info",
@@ -410,9 +407,7 @@ class ItemService:
             "name_ja",
             "price_cny",
             "price_jpy",
-            "category_1",
-            "category_2",
-            "category_3",
+            "category_id",
             "special_info",
             "notes",
         ]
@@ -466,12 +461,9 @@ class ItemService:
         # 分类筛选
         if category_filter := args.get("category_filter"):
             category_term = f"%{category_filter}%"
-            query = query.filter(
-                or_(
-                    Item.category_1.ilike(category_term),
-                    Item.category_2.ilike(category_term),
-                    Item.category_3.ilike(category_term),
-                )
+            # 使用JOIN查询分类表
+            query = query.join(Category, Item.category_id == Category.id).filter(
+                getattr(Category, "name").ilike(category_term)
             )
 
         # 排序
@@ -551,12 +543,9 @@ class ExportService:
         # 商品分类筛选
         if category := args.get("category"):
             category_term = f"%{category}%"
-            query = query.filter(
-                or_(
-                    Item.category_1.ilike(category_term),
-                    Item.category_2.ilike(category_term),
-                    Item.category_3.ilike(category_term),
-                )
+            # 使用JOIN查询分类表
+            query = query.join(Category, Item.category_id == Category.id).filter(
+                getattr(Category, "name").ilike(category_term)
             )
 
         # 特价商品筛选
@@ -637,6 +626,13 @@ class ExportService:
         # 将查询结果转换为扁平化记录
         export_records = []
         for receipt, item in results:
+            # 获取分类路径
+            category_path = ""
+            category_id = None
+            if item.category:
+                category_path = " > ".join(item.category.get_full_path_list())
+                category_id = item.category.id
+
             record = {
                 # 小票信息
                 "receipt_id": receipt.id,
@@ -653,9 +649,8 @@ class ExportService:
                 "item_name_zh": item.name_zh,
                 "price_jpy": item.price_jpy,
                 "price_cny": item.price_cny,
-                "category_1": item.category_1,
-                "category_2": item.category_2,
-                "category_3": item.category_3,
+                "category_id": category_id,
+                "category_path": category_path,
                 "special_info": item.special_info,
                 "is_special_offer": item.is_special_offer,
                 "item_notes": item.notes,
@@ -883,12 +878,9 @@ class AnalyticsService:
         # 商品分类筛选
         if category := args.get("category"):
             category_term = f"%{category}%"
-            query = query.filter(
-                or_(
-                    Item.category_1.ilike(category_term),
-                    Item.category_2.ilike(category_term),
-                    Item.category_3.ilike(category_term),
-                )
+            # 使用JOIN查询分类表
+            query = query.join(Category, Item.category_id == Category.id).filter(
+                getattr(Category, "name").ilike(category_term)
             )
 
         # 店铺筛选
@@ -977,6 +969,24 @@ class AnalyticsService:
         # 转换为字典格式
         items_data = []
         for item in items:
+            # 获取分类层级信息
+            category_info = {}
+            if item.category:
+                ancestors = item.category.get_ancestors()
+                category_info = {
+                    "category_1": ancestors[0].name if len(ancestors) > 0 else None,
+                    "category_2": ancestors[1].name if len(ancestors) > 1 else None,
+                    "category_3": item.category.name,
+                    "category_id": item.category.id,
+                }
+            else:
+                category_info = {
+                    "category_1": None,
+                    "category_2": None,
+                    "category_3": None,
+                    "category_id": None,
+                }
+
             items_data.append(
                 {
                     "id": item.id,
@@ -985,9 +995,7 @@ class AnalyticsService:
                     "name_zh": item.name_zh,
                     "price_jpy": item.price_jpy,
                     "price_cny": item.price_cny,
-                    "category_1": item.category_1,
-                    "category_2": item.category_2,
-                    "category_3": item.category_3,
+                    **category_info,
                     "special_info": item.special_info,
                     "is_special_offer": item.is_special_offer,
                     "notes": item.notes,
@@ -1029,6 +1037,7 @@ class AnalyticsService:
             .filter(Receipt.status == RecognitionStatus.SUCCESS)
         )
 
+        # 日期筛选
         if start_date and isinstance(start_date, str):
             try:
                 start_datetime = datetime.fromisoformat(start_date)
@@ -1043,62 +1052,132 @@ class AnalyticsService:
             except (ValueError, TypeError):
                 pass
 
-        # 根据层级选择分类字段
+        # 根据层级和父分类进行筛选
         if category_level == "1":
-            category_field = Item.category_1
-        elif category_level == "2":
-            category_field = Item.category_2
-            if parent_category:
-                query = query.filter(Item.category_1 == parent_category)
-        elif category_level == "3":
-            category_field = Item.category_3
-            if parent_category:
-                query = query.filter(Item.category_2 == parent_category)
-        else:
-            category_field = Item.category_1
+            # 一级分类统计
+            level1_categories = Category.query.filter_by(level=1).all()
+            category_stats = []
 
-        # 按分类统计
-        category_stats = (
-            query.with_entities(
-                category_field.label("category"),
-                func.sum(Item.price_jpy).label("total_jpy"),
-                func.sum(Item.price_cny).label("total_cny"),
-                func.count(Item.id).label("item_count"),
-            )
-            .filter(category_field.isnot(None))
-            .group_by(category_field)
-            .all()
-        )
+            for cat in level1_categories:
+                # 获取该一级分类下的所有商品（包括子分类）
+                descendant_ids = [cat.id]
+                for child in cat.children:
+                    descendant_ids.append(child.id)
+                    for grandchild in child.children:
+                        descendant_ids.append(grandchild.id)
+
+                cat_query = query.filter(Item.category_id.in_(descendant_ids))
+                total_jpy = (
+                    cat_query.with_entities(func.sum(Item.price_jpy)).scalar() or 0
+                )
+                total_cny = (
+                    cat_query.with_entities(func.sum(Item.price_cny)).scalar() or 0
+                )
+                item_count = cat_query.count()
+
+                if item_count > 0:  # 只包含有商品的分类
+                    category_stats.append(
+                        {
+                            "category": cat.name,
+                            "total_jpy": total_jpy,
+                            "total_cny": total_cny,
+                            "item_count": item_count,
+                        }
+                    )
+
+        elif category_level == "2" and parent_category:
+            # 二级分类统计
+            parent_cat = Category.query.filter_by(name=parent_category, level=1).first()
+            if parent_cat:
+                level2_categories = Category.query.filter_by(
+                    parent_id=parent_cat.id, level=2
+                ).all()
+                category_stats = []
+
+                for cat in level2_categories:
+                    # 获取该二级分类下的所有商品（包括子分类）
+                    descendant_ids = [cat.id]
+                    for child in cat.children:
+                        descendant_ids.append(child.id)
+
+                    cat_query = query.filter(Item.category_id.in_(descendant_ids))
+                    total_jpy = (
+                        cat_query.with_entities(func.sum(Item.price_jpy)).scalar() or 0
+                    )
+                    total_cny = (
+                        cat_query.with_entities(func.sum(Item.price_cny)).scalar() or 0
+                    )
+                    item_count = cat_query.count()
+
+                    if item_count > 0:
+                        category_stats.append(
+                            {
+                                "category": cat.name,
+                                "total_jpy": total_jpy,
+                                "total_cny": total_cny,
+                                "item_count": item_count,
+                            }
+                        )
+            else:
+                category_stats = []
+
+        elif category_level == "3" and parent_category:
+            # 三级分类统计
+            parent_cat = Category.query.filter_by(name=parent_category, level=2).first()
+            if parent_cat:
+                level3_categories = Category.query.filter_by(
+                    parent_id=parent_cat.id, level=3
+                ).all()
+                category_stats = []
+
+                for cat in level3_categories:
+                    cat_query = query.filter(Item.category_id == cat.id)
+                    total_jpy = (
+                        cat_query.with_entities(func.sum(Item.price_jpy)).scalar() or 0
+                    )
+                    total_cny = (
+                        cat_query.with_entities(func.sum(Item.price_cny)).scalar() or 0
+                    )
+                    item_count = cat_query.count()
+
+                    if item_count > 0:
+                        category_stats.append(
+                            {
+                                "category": cat.name,
+                                "total_jpy": total_jpy,
+                                "total_cny": total_cny,
+                                "item_count": item_count,
+                            }
+                        )
+            else:
+                category_stats = []
+        else:
+            category_stats = []
 
         # 转换为前端需要的格式
         categories = []
-        total_jpy = 0
-        total_cny = 0
+        total_jpy = sum(row["total_jpy"] for row in category_stats)
+        total_cny = sum(row["total_cny"] for row in category_stats)
 
         for row in category_stats:
-            category_total_jpy = row.total_jpy or 0
-            category_total_cny = row.total_cny or 0
-            total_jpy += category_total_jpy
-            total_cny += category_total_cny
+            category_total_jpy = row["total_jpy"]
+            category_total_cny = row["total_cny"]
 
             categories.append(
                 {
-                    "category": row.category,
+                    "category": row["category"],
                     "spending": {
                         "jpy": round(category_total_jpy, 2),
                         "cny": round(category_total_cny, 2),
                     },
-                    "item_count": row.item_count,
-                    "percentage": 0,  # 稍后计算
+                    "item_count": row["item_count"],
+                    "percentage": (
+                        round(category_total_jpy / total_jpy * 100, 2)
+                        if total_jpy > 0
+                        else 0
+                    ),
                 }
             )
-
-        # 计算百分比
-        for category in categories:
-            if total_jpy > 0:
-                category["percentage"] = round(
-                    category["spending"]["jpy"] / total_jpy * 100, 2
-                )
 
         # 按金额排序
         categories.sort(key=lambda x: x["spending"]["jpy"], reverse=True)
@@ -1155,17 +1234,60 @@ class AnalyticsService:
 
         # 根据分类层级筛选
         if category_level == "1":
-            query = query.filter(Item.category_1 == category)
+            # 查找一级分类
+            cat = Category.query.filter_by(name=category, level=1).first()
+            if cat:
+                # 获取该一级分类下的所有商品（包括子分类）
+                descendant_ids = [cat.id]
+                for child in cat.children:
+                    descendant_ids.append(child.id)
+                    for grandchild in child.children:
+                        descendant_ids.append(grandchild.id)
+                query = query.filter(Item.category_id.in_(descendant_ids))
+            else:
+                return []  # 分类不存在
         elif category_level == "2":
-            query = query.filter(Item.category_2 == category)
+            # 查找二级分类
+            cat = Category.query.filter_by(name=category, level=2).first()
+            if cat:
+                # 获取该二级分类下的所有商品（包括子分类）
+                descendant_ids = [cat.id]
+                for child in cat.children:
+                    descendant_ids.append(child.id)
+                query = query.filter(Item.category_id.in_(descendant_ids))
+            else:
+                return []
         elif category_level == "3":
-            query = query.filter(Item.category_3 == category)
+            # 查找三级分类
+            cat = Category.query.filter_by(name=category, level=3).first()
+            if cat:
+                query = query.filter(Item.category_id == cat.id)
+            else:
+                return []
 
         items = query.all()
 
         # 转换为字典格式
         items_data = []
         for item in items:
+            # 获取分类层级信息
+            category_info = {}
+            if item.category:
+                ancestors = item.category.get_ancestors()
+                category_info = {
+                    "category_1": ancestors[0].name if len(ancestors) > 0 else None,
+                    "category_2": ancestors[1].name if len(ancestors) > 1 else None,
+                    "category_3": item.category.name,
+                    "category_id": item.category.id,
+                }
+            else:
+                category_info = {
+                    "category_1": None,
+                    "category_2": None,
+                    "category_3": None,
+                    "category_id": None,
+                }
+
             items_data.append(
                 {
                     "id": item.id,
@@ -1174,9 +1296,7 @@ class AnalyticsService:
                     "name_zh": item.name_zh,
                     "price_jpy": item.price_jpy,
                     "price_cny": item.price_cny,
-                    "category_1": item.category_1,
-                    "category_2": item.category_2,
-                    "category_3": item.category_3,
+                    **category_info,
                     "special_info": item.special_info,
                     "is_special_offer": item.is_special_offer,
                     "notes": item.notes,
@@ -1246,9 +1366,16 @@ class DataMiningService:
         category_tree = {}
 
         for item in items:
-            cat1 = item.category_1 or "未分类"
-            cat2 = item.category_2 or "未分类"
-            cat3 = item.category_3 or "未分类"
+            if not item.category:
+                # 如果没有分类，归入"未分类"
+                cat1 = cat2 = cat3 = "未分类"
+                path = ["未分类"]
+            else:
+                ancestors = item.category.get_ancestors()
+                cat1 = ancestors[0].name if len(ancestors) > 0 else "未分类"
+                cat2 = ancestors[1].name if len(ancestors) > 1 else "未分类"
+                cat3 = item.category.name
+                path = [cat1, cat2, cat3]
 
             if cat1 not in category_tree:
                 category_tree[cat1] = {
@@ -1376,19 +1503,46 @@ class DataMiningService:
             for category in categories:
                 path = category.get("path", [])
                 if len(path) == 1:
-                    category_filters.append(Item.category_1 == path[0])
+                    # 一级分类
+                    cat = Category.query.filter_by(name=path[0], level=1).first()
+                    if cat:
+                        # 获取该一级分类下的所有商品（包括子分类）
+                        descendant_ids = [cat.id]
+                        for child in cat.children:
+                            descendant_ids.append(child.id)
+                            for grandchild in child.children:
+                                descendant_ids.append(grandchild.id)
+                        category_filters.append(Item.category_id.in_(descendant_ids))
                 elif len(path) == 2:
-                    category_filters.append(
-                        and_(Item.category_1 == path[0], Item.category_2 == path[1])
-                    )
+                    # 二级分类
+                    level1_cat = Category.query.filter_by(name=path[0], level=1).first()
+                    if level1_cat:
+                        level2_cat = Category.query.filter_by(
+                            name=path[1], level=2, parent_id=level1_cat.id
+                        ).first()
+                        if level2_cat:
+                            # 获取该二级分类下的所有商品（包括子分类）
+                            descendant_ids = [level2_cat.id]
+                            for child in level2_cat.children:
+                                descendant_ids.append(child.id)
+                            category_filters.append(
+                                Item.category_id.in_(descendant_ids)
+                            )
                 elif len(path) == 3:
-                    category_filters.append(
-                        and_(
-                            Item.category_1 == path[0],
-                            Item.category_2 == path[1],
-                            Item.category_3 == path[2],
-                        )
-                    )
+                    # 三级分类
+                    level1_cat = Category.query.filter_by(name=path[0], level=1).first()
+                    if level1_cat:
+                        level2_cat = Category.query.filter_by(
+                            name=path[1], level=2, parent_id=level1_cat.id
+                        ).first()
+                        if level2_cat:
+                            level3_cat = Category.query.filter_by(
+                                name=path[2], level=3, parent_id=level2_cat.id
+                            ).first()
+                            if level3_cat:
+                                category_filters.append(
+                                    Item.category_id == level3_cat.id
+                                )
 
             if category_filters:
                 query = query.filter(or_(*category_filters))

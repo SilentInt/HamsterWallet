@@ -357,14 +357,17 @@
               <!-- 分类和备注信息 -->
               <div class="item-meta-compact">
                 <div class="item-categories-compact">
-                  {% if item.category_1 %}
-                  <span class="badge bg-primary">{{ item.category_1 }}</span>
-                  {% endif %} 
-                  {% if item.category_2 %}
-                  <span class="badge bg-info">{{ item.category_2 }}</span>
-                  {% endif %} 
-                  {% if item.category_3 %}
-                  <span class="badge bg-success">{{ item.category_3 }}</span>
+                  {% if item.category %}
+                  {% set category_path = item.category.get_full_path_list() %}
+                  {% for cat_name in category_path %}
+                  {% if loop.index0 == 0 %}
+                  <span class="badge bg-primary">{{ cat_name }}</span>
+                  {% elif loop.index0 == 1 %}
+                  <span class="badge bg-info">{{ cat_name }}</span>
+                  {% elif loop.index0 == 2 %}
+                  <span class="badge bg-success">{{ cat_name }}</span>
+                  {% endif %}
+                  {% endfor %}
                   {% endif %}
                 </div>
 
@@ -529,12 +532,12 @@
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">中文名称</label>
-            <input type="text" class="form-control" name="name_zh" required />
+            <input type="text" class="form-control" name="name_zh" id="addNameZh" required />
           </div>
 
           <div class="mb-3">
             <label class="form-label">日文名称</label>
-            <input type="text" class="form-control" name="name_ja" />
+            <input type="text" class="form-control" name="name_ja" id="addNameJa" />
           </div>
 
           <div class="row">
@@ -546,6 +549,7 @@
                   step="0.01"
                   class="form-control"
                   name="price_jpy"
+                  id="addPriceJpy"
                 />
               </div>
             </div>
@@ -557,6 +561,7 @@
                   step="0.01"
                   class="form-control"
                   name="price_cny"
+                  id="addPriceCny"
                 />
               </div>
             </div>
@@ -568,9 +573,9 @@
                 class="form-check-input"
                 type="checkbox"
                 name="is_special_offer"
-                id="isSpecialPrice"
+                id="addIsSpecialPrice"
               />
-              <label class="form-check-label" for="isSpecialPrice"
+              <label class="form-check-label" for="addIsSpecialPrice"
                 >特价商品</label
               >
             </div>
@@ -582,6 +587,7 @@
               type="text"
               class="form-control"
               name="special_info"
+              id="addSpecialInfo"
               placeholder="例如：8折优惠、买一送一等"
             />
           </div>
@@ -590,34 +596,37 @@
             <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label">一级分类</label>
-                <input
-                  type="text"
-                  class="form-control"
+                <select class="form-select"
                   name="category_1"
-                  placeholder="例如：食品"
-                />
+                  id="addCategory1"
+                >
+                  <option value="">请选择一级分类</option>
+                </select>
               </div>
             </div>
             <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label">二级分类</label>
-                <input
-                  type="text"
-                  class="form-control"
+                <select class="form-select"
                   name="category_2"
-                  placeholder="例如：零食"
-                />
+                  id="addCategory2"
+                  disabled
+                >
+                  <option value="">请选择二级分类</option>
+                </select>
               </div>
             </div>
             <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label">三级分类</label>
-                <input
-                  type="text"
-                  class="form-control"
+                <select class="form-select"
                   name="category_3"
-                  placeholder="例如：饼干"
-                />
+                  id="addCategory3"
+                  disabled
+                >
+                  <option value="">请选择三级分类</option>
+                </select>
+                <input type="hidden" name="category_id" id="addCategoryId" />
               </div>
             </div>
           </div>
@@ -627,6 +636,7 @@
             <textarea
               class="form-control"
               name="notes"
+              id="addNotes"
               rows="2"
               placeholder="可选"
             ></textarea>
@@ -647,9 +657,9 @@
   </div>
 </div>
 
+{% endblock %}
 
-
-{% endblock %} {% block extra_js %}
+{% block extra_js %}
 <script src="{{ url_for('static', filename='js/item-editor.js') }}"></script>
 <script>
 // 页面初始化
@@ -737,6 +747,20 @@ $(document).ready(function() {
         }
     });
 
+  // 通用页面重载函数
+  function reloadPage(delay = 1000, message = '') {
+    if (message) {
+      showToast(message, 'success');
+    }
+    setTimeout(() => location.reload(), delay);
+  }
+
+  // 通用错误处理函数
+  function handleAjaxError(xhr, defaultMessage = '操作失败') {
+    const message = xhr.responseJSON?.message || '未知错误';
+    showToast(`${defaultMessage}: ${message}`, 'error');
+  }
+
 // 编辑小票信息 - 使用增强工具
 $('#editReceiptForm').on('submit', async function(e) {
     e.preventDefault();
@@ -772,9 +796,9 @@ $('#editReceiptForm').on('submit', async function(e) {
         // 成功反馈动画
         submitBtn.addClass('pulse-success');
         
-        setTimeout(() => location.reload(), 1000);
+      reloadPage(1000);
     } catch (xhr) {
-        showToast('保存失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+      handleAjaxError(xhr, '保存失败');
         form.addClass('shake');
         setTimeout(() => form.removeClass('shake'), 500);
     } finally {
@@ -787,18 +811,25 @@ $('#addItemForm').on('submit', async function(e) {
     e.preventDefault();
 
     const form = $(this);
-    const submitBtn = form.find('button[type="submit"]');
-    const formData = new FormData(this);
-    const data = Object.fromEntries(formData.entries());
-    data.receipt_id = {{ receipt.id|tojson }};
-    data.is_special_offer = formData.has('is_special_offer');
+  const submitBtn = form.find('button[type="submit"]');
+    
+  // 手动构建数据对象，确保使用category_id
+  const data = {
+    receipt_id: {{ receipt.id| tojson
+}},
+  name_zh: $('#addNameZh').val() || null,
+  name_ja: $('#addNameJa').val() || null,
+  price_jpy: $('#addPriceJpy').val() ? parseFloat($('#addPriceJpy').val()) : null,
+  price_cny: $('#addPriceCny').val() ? parseFloat($('#addPriceCny').val()) : null,
+  is_special_offer: $('#addIsSpecialPrice').is(':checked'),
+  special_info: $('#addSpecialInfo').val() || null,
+  notes: $('#addNotes').val() || null,
+  category_id: $('#addCategoryId').val() ? parseInt($('#addCategoryId').val()) : null
+    };
     
     // 表单验证
-    const validator = new FormValidator(form);
-    validator.addRule('name_zh', FormValidator.rules.required, '请输入中文名称');
-    validator.addRule('price_jpy', FormValidator.rules.positiveNumber, '日元价格必须大于0');
-    
-    if (!validator.validate()) {
+      if (!data.name_zh) {
+        showToast('请输入中文名称', 'error');
         form.addClass('shake');
         setTimeout(() => form.removeClass('shake'), 500);
         return;
@@ -820,9 +851,9 @@ $('#addItemForm').on('submit', async function(e) {
         // 成功反馈动画
         submitBtn.addClass('pulse-success');
         
-        setTimeout(() => location.reload(), 1000);
+      reloadPage(1000);
     } catch (xhr) {
-        showToast('添加失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+      handleAjaxError(xhr, '添加失败');
         form.addClass('shake');
         setTimeout(() => form.removeClass('shake'), 500);
     } finally {
@@ -854,20 +885,19 @@ async function reprocessReceipt(receiptId) {
                 type: 'POST'
             });
             
-            showToast('AI识别已启动，正在处理中...', 'info', 5000);
+          showToast('AI识别已启动，正在处理中...', 'info', 3000);
             startStatusMonitoring(receiptId, btn);
         } catch (xhr) {
-            showToast('AI识别启动失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+          handleAjaxError(xhr, 'AI识别启动失败');
             loadingManager.hide(btn);
         }
     }
 }
 
-// 监控识别状态 - 优化版
+  // 监控识别状态 - 简化版
 function startStatusMonitoring(receiptId, btn) {
     let checkCount = 0;
-    const maxChecks = 30;
-    const loadingToastId = showLoadingToast('AI正在识别中，请稍候...');
+  const maxChecks = 30;
 
     function checkStatus() {
         checkCount++;
@@ -878,8 +908,7 @@ function startStatusMonitoring(receiptId, btn) {
             success: function(data) {
                 const status = data.status;
 
-                if (status === '识别成功' || status === '识别失败') {
-                    hideToast(loadingToastId);
+              if (status === '识别成功' || status === '识别失败') {
                     loadingManager.hide(btn);
                     
                     if (status === '识别成功') {
@@ -890,24 +919,18 @@ function startStatusMonitoring(receiptId, btn) {
                         $(btn).addClass('shake');
                         setTimeout(() => $(btn).removeClass('shake'), 500);
                     }
-                    setTimeout(() => location.reload(), 1500);
+                  reloadPage(1500);
                     return;
                 }
 
-                if (checkCount < maxChecks && (status === '待处理' || status === '正在识别')) {
-                    // 更新进度提示
-                    const progress = Math.round((checkCount / maxChecks) * 100);
-                    hideToast(loadingToastId);
-                    showLoadingToast(`AI识别中... (${progress}%)`);
+              if (checkCount < maxChecks && (status === '待处理' || status === '正在识别')) {
                     setTimeout(checkStatus, 2000);
                 } else {
-                    hideToast(loadingToastId);
                     showToast('处理时间较长，请稍后手动刷新页面', 'warning');
                     loadingManager.hide(btn);
                 }
             },
-            error: function() {
-                hideToast(loadingToastId);
+          error: function () {
                 loadingManager.hide(btn);
                 showToast('状态检查失败', 'error');
             }
@@ -946,7 +969,7 @@ async function deleteReceipt(receiptId) {
             
             setTimeout(() => window.location.href = '{{ url_for("frontend.receipt_list") }}', 1000);
         } catch (xhr) {
-            showToast('删除失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+          handleAjaxError(xhr, '删除失败');
             $(btn).addClass('shake');
             setTimeout(() => $(btn).removeClass('shake'), 500);
         } finally {
@@ -973,7 +996,7 @@ async function editItem(itemId) {
         // 使用ItemEditor组件显示编辑模态框
         editor.show(response, () => {
             // 保存成功回调，刷新页面
-            location.reload();
+          reloadPage(1000);
         });
         
     } catch (error) {
@@ -1019,7 +1042,7 @@ async function deleteItem(itemId) {
             }, 500);
             
         } catch (xhr) {
-            showToast('删除失败: ' + (xhr.responseJSON?.message || '未知错误'), 'error');
+          handleAjaxError(xhr, '删除失败');
             itemRow.addClass('shake');
             setTimeout(() => itemRow.removeClass('shake'), 500);
         } finally {
@@ -1046,23 +1069,121 @@ function updateItemCount() {
     }
 }
 
-// 复制商品信息到剪贴板
-function copyItemInfo(itemId) {
+  // 加载分类选项 - 用于添加商品
+  let addCategoryData = null;
+
+  function loadCategoryOptions() {
     $.ajax({
-        url: `/api/items/${itemId}`,
+      url: '/api/category/tree',
         type: 'GET',
-        success: function(item) {
-            const itemInfo = `商品名称: ${item.name_zh || item.name_ja || '未知'}
-日元价格: ¥${item.price_jpy || '0'}
-人民币价格: ¥${item.price_cny || '0'}
-分类: ${[item.category_1, item.category_2, item.category_3].filter(c => c).join(' > ') || '未分类'}`;
-            
-            Utils.copyToClipboard(itemInfo);
+      success: function (response) {
+        if (response.success) {
+          addCategoryData = response.data;
+          populateAddCategoryLevel1();
+        }
         },
         error: function() {
-            showToast('获取商品信息失败', 'error');
-        }
+        console.error('加载分类选项失败');
+      }
     });
-}
+              }
+
+              // 填充添加商品的一级分类选项
+              function populateAddCategoryLevel1() {
+                const select1 = $('#addCategory1');
+                select1.empty().append('<option value="">请选择一级分类</option>');
+
+                addCategoryData.forEach(category => {
+                  select1.append(`<option value="${category.id}">${category.name}</option>`);
+                });
+              }
+
+              // 填充添加商品的二级分类选项
+              function populateAddCategoryLevel2(level1Id) {
+                const select2 = $('#addCategory2');
+                const select3 = $('#addCategory3');
+
+                select2.empty().append('<option value="">请选择二级分类</option>');
+                select3.empty().append('<option value="">请选择三级分类</option>');
+                select2.prop('disabled', true);
+                select3.prop('disabled', true);
+                $('#addCategoryId').val('');
+
+                if (!level1Id) return;
+
+                const level1Category = addCategoryData.find(cat => cat.id == level1Id);
+                if (level1Category && level1Category.children) {
+                  level1Category.children.forEach(category => {
+                    select2.append(`<option value="${category.id}">${category.name}</option>`);
+                  });
+                  select2.prop('disabled', false);
+                }
+              }
+
+              // 填充添加商品的三级分类选项
+              function populateAddCategoryLevel3(level1Id, level2Id) {
+                const select3 = $('#addCategory3');
+                select3.empty().append('<option value="">请选择三级分类</option>');
+                select3.prop('disabled', true);
+                $('#addCategoryId').val('');
+
+                if (!level1Id || !level2Id) return;
+
+                const level1Category = addCategoryData.find(cat => cat.id == level1Id);
+                if (level1Category && level1Category.children) {
+                  const level2Category = level1Category.children.find(cat => cat.id == level2Id);
+                  if (level2Category && level2Category.children) {
+                    level2Category.children.forEach(category => {
+                      select3.append(`<option value="${category.id}">${category.name}</option>`);
+                    });
+                    select3.prop('disabled', false);
+                  }
+                }
+              }
+
+              // 添加商品分类选择事件处理
+              $('#addCategory1').on('change', function () {
+                const level1Id = $(this).val();
+                populateAddCategoryLevel2(level1Id);
+                if (level1Id) {
+                  $('#addCategoryId').val(level1Id);
+                } else {
+                  $('#addCategoryId').val('');
+                }
+              });
+
+              $('#addCategory2').on('change', function () {
+                const level1Id = $('#addCategory1').val();
+                const level2Id = $(this).val();
+                populateAddCategoryLevel3(level1Id, level2Id);
+                if (level2Id) {
+                  $('#addCategoryId').val(level2Id);
+                } else if (level1Id) {
+                  $('#addCategoryId').val(level1Id);
+                } else {
+                  $('#addCategoryId').val('');
+                }
+              });
+
+  $('#addCategory3').on('change', function () {
+    const level3Id = $(this).val();
+    const level2Id = $('#addCategory2').val();
+    const level1Id = $('#addCategory1').val();
+
+    if (level3Id) {
+      $('#addCategoryId').val(level3Id);
+    } else if (level2Id) {
+      $('#addCategoryId').val(level2Id);
+    } else if (level1Id) {
+      $('#addCategoryId').val(level1Id);
+    } else {
+      $('#addCategoryId').val('');
+    }
+});
+
+  // 在模态框显示时加载分类选项
+  $('#addItemModal').on('show.bs.modal', function () {
+    loadCategoryOptions();
+  });
 </script>
 {% endblock %}

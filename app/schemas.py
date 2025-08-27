@@ -1,14 +1,34 @@
 # app/schemas.py
 from .database import ma
 from .models import Receipt, Item
+from .category_models import Category
 from marshmallow import fields, Schema
 
 
+class CategorySchema(ma.SQLAlchemyAutoSchema):
+    """分类 Schema"""
+
+    class Meta:
+        model = Category
+        load_instance = True
+        include_fk = True
+
+
 class ItemSchema(ma.SQLAlchemyAutoSchema):
+    """商品 Schema"""
+    category = fields.Nested(CategorySchema, allow_none=True)
+    category_path = fields.Method("get_category_path")
+
     class Meta:
         model = Item
         load_instance = True
         include_fk = True
+
+    def get_category_path(self, obj):
+        """获取分类路径"""
+        if obj.category:
+            return " > ".join(obj.category.get_full_path_list())
+        return None
 
 
 class ReceiptSchema(ma.SQLAlchemyAutoSchema):
@@ -44,9 +64,8 @@ class ExportRecordSchema(Schema):
     item_name_zh = fields.String()
     price_jpy = fields.Float()
     price_cny = fields.Float()
-    category_1 = fields.String()
-    category_2 = fields.String()
-    category_3 = fields.String()
+    category_id = fields.Integer()
+    category_path = fields.String()
     special_info = fields.String()
     is_special_offer = fields.Boolean()
     item_notes = fields.String()

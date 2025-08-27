@@ -343,3 +343,99 @@ def delete_category(category_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"删除分类失败: {str(e)}"}), 500
+
+
+@category_bp.route("/<int:category_id>/usage", methods=["GET"])
+def get_category_usage(category_id):
+    """获取分类使用情况信息"""
+    try:
+        from .category_service import CategoryService
+
+        usage_info = CategoryService.get_category_usage_info(category_id)
+
+        if "error" in usage_info:
+            return jsonify({"success": False, "message": usage_info["error"]}), 404
+
+        return jsonify({"success": True, "data": usage_info})
+
+    except Exception as e:
+        return (
+            jsonify({"success": False, "message": f"获取分类使用信息失败: {str(e)}"}),
+            500,
+        )
+
+
+@category_bp.route("/merge", methods=["POST"])
+def merge_categories():
+    """合并分类"""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"success": False, "message": "请求数据不能为空"}), 400
+
+        source_id = data.get("source_category_id")
+        target_id = data.get("target_category_id")
+        delete_source = data.get("delete_source", True)
+
+        if not source_id or not target_id:
+            return (
+                jsonify({"success": False, "message": "源分类ID和目标分类ID不能为空"}),
+                400,
+            )
+
+        from .category_service import CategoryService
+
+        result = CategoryService.merge_categories(source_id, target_id, delete_source)
+
+        if result.get("success"):
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"成功将分类 '{result['source_category_name']}' 合并到 '{result['target_category_name']}'",
+                    "data": result,
+                }
+            )
+        else:
+            return jsonify({"success": False, "message": result.get("error")}), 400
+
+    except Exception as e:
+        return jsonify({"success": False, "message": f"合并分类失败: {str(e)}"}), 500
+
+
+@category_bp.route("/batch-update-items", methods=["POST"])
+def batch_update_items_category():
+    """批量更新商品分类"""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"success": False, "message": "请求数据不能为空"}), 400
+
+        item_ids = data.get("item_ids", [])
+        new_category_id = data.get("new_category_id")
+
+        if not item_ids:
+            return jsonify({"success": False, "message": "商品ID列表不能为空"}), 400
+
+        if not new_category_id:
+            return jsonify({"success": False, "message": "新分类ID不能为空"}), 400
+
+        from .category_service import CategoryService
+
+        result = CategoryService.batch_update_items_category(item_ids, new_category_id)
+
+        if result.get("success"):
+            message = f"成功更新 {result['updated_count']} 个商品的分类为 '{result['new_category_name']}'"
+            if result.get("missing_item_ids"):
+                message += f"，{len(result['missing_item_ids'])} 个商品ID不存在"
+
+            return jsonify({"success": True, "message": message, "data": result})
+        else:
+            return jsonify({"success": False, "message": result.get("error")}), 400
+
+    except Exception as e:
+        return (
+            jsonify({"success": False, "message": f"批量更新商品分类失败: {str(e)}"}),
+            500,
+        )

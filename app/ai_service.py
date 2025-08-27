@@ -13,19 +13,44 @@ class AIService:
         self.client = None  # 延迟初始化
         # 移除硬编码的分类定义，改为从数据库动态获取
 
-    def _get_category_structure(self):
-        """获取当前的分类结构，优先从数据库获取，如果数据库为空则使用默认结构"""
+    def _get_category_structure_with_ids(self):
+        """获取包含ID的分类结构，供AI识别使用"""
         try:
             from .category_models import Category
 
-            categories = Category.get_hierarchy_for_ai()
-            if categories:
-                return categories
-        except Exception as e:
-            current_app.logger.warning(f"从数据库获取分类失败，使用默认分类: {e}")
+            # 获取所有分类
+            all_categories = Category.query.all()
+            if not all_categories:
+                return []
 
-        # 如果数据库中没有分类或获取失败，返回空结构
-        return []
+            # 构建层级结构
+            level1_categories = [cat for cat in all_categories if cat.level == 1]
+            result = []
+
+            for level1 in level1_categories:
+                level1_data = {"id": level1.id, "name": level1.name, "children": []}
+
+                level2_categories = [
+                    cat for cat in all_categories if cat.parent_id == level1.id
+                ]
+                for level2 in level2_categories:
+                    level2_data = {"id": level2.id, "name": level2.name, "children": []}
+
+                    level3_categories = [
+                        cat for cat in all_categories if cat.parent_id == level2.id
+                    ]
+                    for level3 in level3_categories:
+                        level3_data = {"id": level3.id, "name": level3.name}
+                        level2_data["children"].append(level3_data)
+
+                    level1_data["children"].append(level2_data)
+
+                result.append(level1_data)
+
+            return result
+        except Exception as e:
+            current_app.logger.warning(f"从数据库获取分类结构失败: {e}")
+            return []
 
     def _get_client(self):
         """获取OpenAI客户端，延迟初始化"""
@@ -48,7 +73,8 @@ class AIService:
 
     def _build_prompt(self):
         """构建AI识别的提示词"""
-        category_structure = self._get_category_structure()
+        category_structure = self._get_category_structure_with_ids()
+        print("Category Structure for AI Prompt:", category_structure)
 
         return f"""
 # 角色
@@ -99,21 +125,24 @@ class AIService:
     *   **重点**: 只标注商品是什么，**省略品牌信息**，但**保留必要的规格、数量或重量信息** (例如 "香蕉(500g)", "牛奶(1L)", "牙膏")。
     *   力求准确、自然。
 3.  **`category_1`** (string):
-    *   **必须**从文末提供的 **商品分类定义表** 中的一级分类中选择**最匹配**的一项。
+    *   **必须**从文末提供的 **商品分类定义表** 中的一级分类中选择**最匹配**的一项分类名称。
 4.  **`category_2`** (string):
-    *   基于选择的 `category_1`，从 **商品分类定义表** 中对应 `category_1` 下的二级分类中选择**最匹配**的一项。
+    *   基于选择的 `category_1`，从 **商品分类定义表** 中对应 `category_1` 下的二级分类中选择**最匹配**的一项分类名称。
 5.  **`category_3`** (string):
-    *   基于选择的 `category_2`，从 **商品分类定义表** 中对应 `category_2` 下的三级分类中选择**最匹配**的一项。
+    *   基于选择的 `category_2`，从 **商品分类定义表** 中对应 `category_2` 下的三级分类中选择**最匹配**的一项分类名称。
     *   **此字段的值必须严格来自于商品分类定义表中列出的三级分类名称。不允许生成列表中未包含的词语。**
-6.  **`price_jpy`** (number or string):
+6.  **`category_id`** (number):
+    *   基于选择的 `category_3`，从 **商品分类定义表** 中找到对应三级分类的ID。
+    *   **此字段必须是数字，对应商品分类定义表中三级分类的ID值。**
+7.  **`price_jpy`** (number or string):
     *   计算并提取该商品（考虑数量）的**最终含税日元价格**。
     *   **注意**: 仔细判断小票上的价格是**税抜 (税前)** 还是 **税込 (税后)**，并正确计算包含消费税的总价。如果小票列出了多个相同商品，确保计算的是**总价**。
     *   输出为数值或字符串格式皆可 (例如 438 或 "438")。
-7.  **`price_cny`** (number or string):
+8.  **`price_cny`** (number or string):
     *   根据**当前大致汇率** (如果无法获取实时汇率，可基于近期汇率估算或由用户后续处理)，将 `price_jpy` 换算成人民币价格。
     *   结果保留两位小数。
     *   输出为数值或字符串格式皆可 (例如 21.90 或 "21.90")。如果无法估算，可留空或填0。
-8.  **`special_info`** (string):
+9.  **`special_info`** (string):
     *   判断该商品是否为特价商品。
     *   检查商品行是否包含 "特売", "特価", "割引", "値引" 等明确表示折扣的字样，或者价格旁边有折扣标记。
     *   如果识别到具体的折扣比例 (例如 `20%引き`)，则填入折扣信息，格式为 **"-20%"**。
@@ -121,7 +150,8 @@ class AIService:
     *   如果没有任何特价标识，则填 **"否"**。
 
 # 商品分类定义表
-**请严格按照此表选择 `category_1`, `category_2`, 和 `category_3`。**
+**请严格按照此表选择 `category_1`, `category_2`, `category_3` 和 `category_id`。**
+**分类结构格式说明：每个分类都包含id和name，三级分类的id必须填入category_id字段。**
 
 {str(category_structure) if category_structure else "暂无分类定义，请联系管理员配置分类结构。"}
 """
@@ -169,6 +199,7 @@ class AIService:
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": text_description},
                 ]
+            print("AI Prompt:", prompt)
 
             response = client.chat.completions.create(
                 model=self.model_name,
@@ -177,15 +208,28 @@ class AIService:
             )
 
             response_content = response.choices[0].message.content
-            if response_content is None:
+            if response_content is None or response_content.strip() == "":
                 current_app.logger.error("OpenAI API returned empty response")
                 return None
-            # print("AI Response:", response_content)
+            
+            print("AI Response:", response_content)
 
             # 清理和解析JSON
             json_str = response_content.strip().lstrip("```json").rstrip("```")
+            
+            # 检查清理后的字符串是否为空
+            if not json_str.strip():
+                current_app.logger.error("Cleaned JSON string is empty")
+                return None
+                
             # print("Extracted JSON String:", json_str)
-            return json.loads(json_str)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError as json_error:
+                current_app.logger.error(f"JSON解析失败: {json_error}")
+                current_app.logger.error(f"原始响应: {response_content}")
+                current_app.logger.error(f"清理后的JSON: {json_str}")
+                return None
 
         except Exception as e:
             current_app.logger.error(f"OpenAI API call failed: {e}")
