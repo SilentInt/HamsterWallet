@@ -5,6 +5,7 @@ from typing import List, Optional
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from sqlalchemy import Integer, String, Float, DateTime, Boolean, Date, Enum, ForeignKey
 from .database import db
+from .category_models import Category
 
 
 class RecognitionStatus(enum.Enum):

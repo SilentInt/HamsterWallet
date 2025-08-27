@@ -1,0 +1,786 @@
+{% extends "base.html" %}
+
+{% block title %}分类管理 - 仓鼠记账{% endblock %}
+
+{% block extra_css %}
+<style>
+    .category-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        padding: 24px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+        border: 1px solid #f0f0f0;
+    }
+
+    .category-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .category-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #f8f9fa;
+    }
+
+    .category-title {
+        display: flex;
+        align-items: center;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .category-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .level-1-icon {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .level-2-icon {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .level-3-icon {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .category-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-action {
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .btn-edit {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .btn-edit:hover {
+        background: linear-gradient(135deg, #3d9aec 0%, #00e0ec 100%);
+        transform: translateY(-1px);
+    }
+
+    .btn-add {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #2c3e50;
+    }
+
+    .btn-add:hover {
+        background: linear-gradient(135deg, #96e5e1 0%, #fcc4d1 100%);
+        transform: translateY(-1px);
+    }
+
+    .btn-delete {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+
+    .btn-delete:hover {
+        background: linear-gradient(135deg, #f95d88 0%, #fdd52e 100%);
+        transform: translateY(-1px);
+    }
+
+    .subcategory-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    .subcategory-item {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 16px;
+        transition: all 0.2s ease;
+    }
+
+    .subcategory-item:hover {
+        background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
+        border-color: #dee2e6;
+        transform: translateY(-2px);
+    }
+
+    .subcategory-header {
+        display: flex;
+        align-items: center;
+        justify-content: between;
+        margin-bottom: 12px;
+    }
+
+    .subcategory-name {
+        font-weight: 600;
+        color: #495057;
+        flex-grow: 1;
+    }
+
+    .subcategory-actions {
+        display: flex;
+        gap: 6px;
+    }
+
+    .sub-subcategory-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .sub-subcategory-tag {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stats-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 20px;
+        text-align: center;
+    }
+
+    .stats-item {
+        padding: 12px;
+    }
+
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .stats-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #f8f9fa;
+    }
+
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .btn-create-main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 12px;
+        padding: 12px 24px;
+        color: white;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-create-main:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: #6c757d;
+        background: #f8f9fa;
+        border-radius: 16px;
+        margin: 40px 0;
+    }
+
+    .empty-state i {
+        font-size: 5rem;
+        margin-bottom: 24px;
+        opacity: 0.5;
+        color: #667eea;
+    }
+
+    .empty-state h4 {
+        margin-bottom: 16px;
+        color: #495057;
+    }
+
+    .btn-sm-custom {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="fas fa-tags"></i> 分类管理
+    </h1>
+    <div class="dropdown">
+        <button class="btn btn-create-main dropdown-toggle" type="button" id="createDropdown" data-bs-toggle="dropdown">
+            <i class="fas fa-plus"></i> 创建分类
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="openCreateModal(1)">
+                    <i class="fas fa-plus-circle text-primary"></i> 创建一级分类
+                </a></li>
+            {% if category_tree %}
+            <li><a class="dropdown-item" href="#" onclick="openCreateModal(2)">
+                    <i class="fas fa-plus-circle text-info"></i> 创建二级分类
+                </a></li>
+            <li><a class="dropdown-item" href="#" onclick="openCreateModal(3)">
+                    <i class="fas fa-plus-circle text-success"></i> 创建三级分类
+                </a></li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+
+<!-- 统计信息 -->
+<div class="stats-section">
+    <div class="stats-grid">
+        <div class="stats-item">
+            <span class="stats-number">{{ stats.level1_count or 0 }}</span>
+            <div class="stats-label">一级分类</div>
+        </div>
+        <div class="stats-item">
+            <span class="stats-number">{{ stats.level2_count or 0 }}</span>
+            <div class="stats-label">二级分类</div>
+        </div>
+        <div class="stats-item">
+            <span class="stats-number">{{ stats.level3_count or 0 }}</span>
+            <div class="stats-label">三级分类</div>
+        </div>
+        <div class="stats-item">
+            <span class="stats-number">{{ stats.total_count or 0 }}</span>
+            <div class="stats-label">总计</div>
+        </div>
+    </div>
+</div>
+
+<!-- 分类内容 -->
+{% if category_tree %}
+{% for category1 in category_tree %}
+<div class="category-card">
+    <div class="category-header">
+        <div class="category-title">
+            <div class="category-icon level-1-icon">
+                <i class="fas fa-folder"></i>
+            </div>
+            {{ category1.name }}
+        </div>
+        <div class="category-actions">
+            <button class="btn btn-action btn-edit" data-category-id="{{ category1.id }}"
+                data-category-name="{{ category1.name }}" data-category-level="{{ category1.level }}"
+                data-category-parent="{{ category1.parent_id or '' }}" onclick="editCategory(this)" title="编辑分类">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-action btn-add" onclick="openCreateModal(2, {{ category1.id }})" title="添加子分类">
+                <i class="fas fa-plus"></i>
+            </button>
+            <button class="btn btn-action btn-delete"
+                onclick="deleteCategory({{ category1.id }}, '{{ category1.name }}')" title="删除分类">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    </div>
+
+    {% if category1.children %}
+    <div class="subcategory-grid">
+        {% for category2 in category1.children %}
+        <div class="subcategory-item">
+            <div class="subcategory-header">
+                <div class="subcategory-name">
+                    <i class="fas fa-folder-open text-info"></i> {{ category2.name }}
+                </div>
+                <div class="subcategory-actions">
+                    <button class="btn btn-action btn-edit btn-sm-custom" data-category-id="{{ category2.id }}"
+                        data-category-name="{{ category2.name }}" data-category-level="{{ category2.level }}"
+                        data-category-parent="{{ category2.parent_id or '' }}" onclick="editCategory(this)" title="编辑">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-action btn-add btn-sm-custom"
+                        onclick="openCreateModal(3, {{ category2.id }})" title="添加子分类">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="btn btn-action btn-delete btn-sm-custom"
+                        onclick="deleteCategory({{ category2.id }}, '{{ category2.name }}')" title="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+
+            {% if category2.children %}
+            <div class="sub-subcategory-list">
+                {% for category3 in category2.children %}
+                <div class="sub-subcategory-tag">
+                    <i class="fas fa-tag"></i>
+                    {{ category3.name }}
+                    <button class="btn btn-sm p-0 ms-1 text-white" data-category-id="{{ category3.id }}"
+                        data-category-name="{{ category3.name }}" data-category-level="{{ category3.level }}"
+                        data-category-parent="{{ category3.parent_id or '' }}" onclick="editCategory(this)" title="编辑"
+                        style="background: none; border: none; font-size: 0.7rem;">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm p-0 ms-1 text-white"
+                        onclick="deleteCategory({{ category3.id }}, '{{ category3.name }}')" title="删除"
+                        style="background: none; border: none; font-size: 0.7rem;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-muted small">
+                <i class="fas fa-info-circle"></i> 暂无三级分类
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-muted text-center py-3">
+        <i class="fas fa-folder-plus"></i> 暂无二级分类，点击上方"+"按钮添加
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-folder-open"></i>
+    <h4>暂无分类</h4>
+    <p class="mb-4">点击上方"创建分类"按钮开始创建您的第一个分类</p>
+    <button class="btn btn-create-main" onclick="openCreateModal(1)">
+        <i class="fas fa-plus"></i> 创建一级分类
+    </button>
+</div>
+{% endif %}
+
+<!-- 创建分类模态框 -->
+<div class="modal fade" id="createCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createModalTitle">创建分类</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createCategoryForm">
+                <div class="modal-body">
+                    <input type="hidden" id="createCategoryLevel">
+                    <input type="hidden" id="createParentId">
+                    <div class="mb-3">
+                        <label for="createCategoryName" class="form-label">分类名称</label>
+                        <input type="text" class="form-control" id="createCategoryName" required>
+                    </div>
+                    <div class="mb-3" id="createParentCategoryGroup" style="display: none;">
+                        <label for="createParentCategory" class="form-label">父分类</label>
+                        <select class="form-select" id="createParentCategory">
+                            <option value="">选择父分类</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="createParentInfo" style="display: none;">
+                        <label class="form-label">父分类</label>
+                        <div id="createParentName" class="form-control-plaintext bg-light p-2 rounded"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">创建分类</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑分类模态框 -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑分类</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editCategoryForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editCategoryId">
+                    <div class="mb-3">
+                        <label for="editCategoryName" class="form-label">分类名称</label>
+                        <input type="text" class="form-control" id="editCategoryName" required>
+                    </div>
+                    <div class="mb-3" id="editParentCategoryGroup" style="display: none;">
+                        <label for="editParentCategory" class="form-label">父分类</label>
+                        <select class="form-select" id="editParentCategory">
+                            <option value="">选择父分类</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除分类 "<span id="deleteCategoryName"></span>" 吗？</p>
+                <div id="deleteWarningMessage" class="alert alert-warning" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="deleteWarningText"></span>
+                </div>
+                <div id="deleteCascadeOption" style="display: none;">
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="cascadeDelete">
+                        <label class="form-check-label" for="cascadeDelete">
+                            <strong>级联删除所有子分类</strong>
+                            <div class="text-muted small">选中此选项将同时删除该分类下的所有子分类</div>
+                        </label>
+                    </div>
+                </div>
+                <p class="text-muted mt-2">此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">确定删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let deleteTargetId = null;
+
+    // 打开创建分类模态框
+    function openCreateModal(level, parentId = null) {
+        const modal = document.getElementById('createCategoryModal');
+        const title = document.getElementById('createModalTitle');
+        const levelInput = document.getElementById('createCategoryLevel');
+        const parentIdInput = document.getElementById('createParentId');
+        const parentGroup = document.getElementById('createParentCategoryGroup');
+        const parentInfo = document.getElementById('createParentInfo');
+        const parentSelect = document.getElementById('createParentCategory');
+        const nameInput = document.getElementById('createCategoryName');
+
+        // 重置表单
+        nameInput.value = '';
+        levelInput.value = level;
+        parentIdInput.value = parentId || '';
+
+        // 设置标题
+        const levelNames = { 1: '一级', 2: '二级', 3: '三级' };
+        title.textContent = `创建${levelNames[level]}分类`;
+
+        if (level === 1) {
+            // 一级分类，隐藏父分类选择
+            parentGroup.style.display = 'none';
+            parentInfo.style.display = 'none';
+        } else if (parentId) {
+            // 有指定父分类，显示父分类信息
+            parentGroup.style.display = 'none';
+            parentInfo.style.display = 'block';
+
+            // 获取父分类名称
+            findCategoryName(parentId).then(name => {
+                document.getElementById('createParentName').textContent = name;
+            });
+        } else {
+            // 需要选择父分类
+            parentGroup.style.display = 'block';
+            parentInfo.style.display = 'none';
+
+            // 加载父分类选项
+            loadParentCategoriesForCreate(level, parentSelect);
+        }
+
+        // 显示模态框
+        const createModal = new bootstrap.Modal(modal);
+        createModal.show();
+    }
+
+    // 查找分类名称
+    async function findCategoryName(categoryId) {
+        try {
+            const response = await fetch(`/category/api/category/${categoryId}`);
+            const data = await response.json();
+            return data.success ? data.data.category.name : '未知分类';
+        } catch (error) {
+            console.error('Error finding category name:', error);
+            return '未知分类';
+        }
+    }
+
+    // 为创建分类加载父分类选项
+    function loadParentCategoriesForCreate(level, selectElement) {
+        fetch(`/category/api/parent-categories/${level}`)
+            .then(response => response.json())
+            .then(data => {
+                selectElement.innerHTML = '<option value="">选择父分类</option>';
+                if (data.success) {
+                    data.data.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        selectElement.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading parent categories:', error));
+    }
+
+    // 提交创建表单
+    document.getElementById('createCategoryForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const level = parseInt(document.getElementById('createCategoryLevel').value);
+        const name = document.getElementById('createCategoryName').value;
+        const parentId = document.getElementById('createParentId').value ||
+            document.getElementById('createParentCategory').value || null;
+
+        fetch('/api/category', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                level: level,
+                parent_id: parentId
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('创建失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('创建失败: ' + error.message);
+            })
+            .finally(() => {
+                const createModal = bootstrap.Modal.getInstance(document.getElementById('createCategoryModal'));
+                createModal.hide();
+            });
+    });
+
+    // 编辑分类
+    function editCategory(button) {
+        const categoryId = button.getAttribute('data-category-id');
+        const categoryName = button.getAttribute('data-category-name');
+        const categoryLevel = parseInt(button.getAttribute('data-category-level'));
+        const categoryParent = button.getAttribute('data-category-parent');
+
+        // 填充编辑表单
+        document.getElementById('editCategoryId').value = categoryId;
+        document.getElementById('editCategoryName').value = categoryName;
+
+        // 根据级别处理父分类选择
+        const parentGroup = document.getElementById('editParentCategoryGroup');
+        const parentSelect = document.getElementById('editParentCategory');
+
+        if (categoryLevel > 1) {
+            parentGroup.style.display = 'block';
+            // 清空选项
+            parentSelect.innerHTML = '<option value="">选择父分类</option>';
+
+            // 根据级别加载可选的父分类
+            loadParentCategoriesForEdit(categoryLevel, categoryParent, parentSelect);
+        } else {
+            parentGroup.style.display = 'none';
+        }
+
+        // 显示模态框
+        const editModal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+        editModal.show();
+    }
+
+    // 为编辑分类加载父分类选项
+    function loadParentCategoriesForEdit(level, currentParent, selectElement) {
+        fetch(`/category/api/parent-categories/${level}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    data.data.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        if (category.id == currentParent) {
+                            option.selected = true;
+                        }
+                        selectElement.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading parent options:', error));
+    }
+
+    // 提交编辑表单
+    document.getElementById('editCategoryForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const categoryId = document.getElementById('editCategoryId').value;
+        const categoryName = document.getElementById('editCategoryName').value;
+        const parentId = document.getElementById('editParentCategory').value || null;
+
+        fetch(`/api/category/${categoryId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: categoryName,
+                parent_id: parentId
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('编辑失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('编辑失败: ' + error.message);
+            })
+            .finally(() => {
+                const editModal = bootstrap.Modal.getInstance(document.getElementById('editCategoryModal'));
+                editModal.hide();
+            });
+    });
+
+    // 删除分类
+    function deleteCategory(categoryId, categoryName) {
+        deleteTargetId = categoryId;
+        document.getElementById('deleteCategoryName').textContent = categoryName;
+
+        // 重置界面
+        document.getElementById('deleteWarningMessage').style.display = 'none';
+        document.getElementById('deleteCascadeOption').style.display = 'none';
+        document.getElementById('cascadeDelete').checked = false;
+
+        // 检查是否有子分类
+        fetch(`/api/category/${categoryId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data.children && data.data.children.length > 0) {
+                    // 有子分类，显示警告和级联删除选项
+                    const childrenCount = data.data.children.length;
+                    document.getElementById('deleteWarningText').textContent =
+                        `该分类下有 ${childrenCount} 个子分类。`;
+                    document.getElementById('deleteWarningMessage').style.display = 'block';
+                    document.getElementById('deleteCascadeOption').style.display = 'block';
+                }
+
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                deleteModal.show();
+            })
+            .catch(error => {
+                console.error('Error checking category children:', error);
+                // 即使检查失败也显示删除对话框
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                deleteModal.show();
+            });
+    }
+
+    function confirmDelete() {
+        if (!deleteTargetId) return;
+
+        const cascade = document.getElementById('cascadeDelete').checked;
+        const url = `/api/category/${deleteTargetId}${cascade ? '?cascade=true' : ''}`;
+
+        fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload(); // 刷新页面
+                } else {
+                    if (data.has_children && !cascade) {
+                        // 如果有子分类但没有选择级联删除，显示详细信息
+                        alert(`删除失败: ${data.message}\n\n请选择级联删除选项来同时删除所有子分类。`);
+                    } else {
+                        alert('删除失败: ' + data.message);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('删除失败: ' + error.message);
+            })
+            .finally(() => {
+                const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                if (deleteModal) {
+                    deleteModal.hide();
+                }
+                deleteTargetId = null;
+            });
+    }
+</script>
+{% endblock %}

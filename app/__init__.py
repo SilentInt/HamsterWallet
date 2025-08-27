@@ -6,6 +6,8 @@ from flask_restful import Api
 from config import Config
 from .database import db, ma
 from .frontend import frontend_bp
+from .category_api import category_bp
+from .category_frontend import category_frontend_bp
 from .resources import (
     ReceiptListResource,
     ReceiptResource,
@@ -42,6 +44,8 @@ def create_app(config_class=Config):
 
     # 注册 Blueprint
     app.register_blueprint(frontend_bp)
+    app.register_blueprint(category_bp)
+    app.register_blueprint(category_frontend_bp)
 
     # 添加 CLI 命令
     @app.cli.command("init-db")
