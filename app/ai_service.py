@@ -123,6 +123,8 @@ class AIService:
   - `price_cny`: 人民币价格(数字，保留2位小数)
   - `special_info`: 特价信息("-20%"/"是"/"否")
 
+日元汇率按1日元=0.05人民币计算，价格四舍五入到分。
+
 ## 可用分类列表：
 {self._format_categories_for_prompt(category_structure)}
 """
