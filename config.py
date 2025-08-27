@@ -26,12 +26,12 @@ class Config:
     IMAGE_MAX_WIDTH = 1920  # 最大宽度
     IMAGE_MAX_HEIGHT = 1080  # 最大高度
 
-    # OpenAI API 配置
+    # AI API 配置（支持 OpenAI 兼容接口）
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
     OPENAI_API_BASE_URL = os.environ.get(
         "OPENAI_API_BASE_URL", "https://api.openai.com/v1"
     )
-    MODULE_NAME = os.environ.get("MODULE_NAME", "gpt-4o-mini")
-    OPENAI_TEMPERATURE = float(
-        os.environ.get("OPENAI_TEMPERATURE", "0.1")
-    )  # AI模型温度设置
+    # 模型名称，支持多种模型提供商
+    AI_MODEL_NAME = os.environ.get("MODULE_NAME", "gpt-4o-mini")
+    # AI模型温度设置，控制输出的随机性
+    OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.1"))
