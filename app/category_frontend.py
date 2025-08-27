@@ -28,7 +28,7 @@ def category_management():
         }
 
         # 获取所有分类用于模态框选择
-        all_categories = Category.query.order_by(Category.level, Category.name).all()
+        all_categories = Category.query.order_by("level", "name").all()
 
         return render_template(
             "category.html",
@@ -52,14 +52,39 @@ def get_category_api(category_id):
             return jsonify({"success": False, "message": "分类不存在"}), 404
 
         # 获取可选的父分类
+        # 获取所有一级和二级分类，但排除自己和可能导致循环引用的分类
+        def is_descendant_of(potential_parent_id, category_id):
+            """检查potential_parent_id是否是category_id的后代分类（避免循环引用）"""
+            potential_parent = Category.query.get(potential_parent_id)
+            while potential_parent:
+                if potential_parent.id == category_id:
+                    return True
+                potential_parent = potential_parent.parent
+            return False
+
         parent_categories = []
-        if category.level > 1:
-            parent_level = category.level - 1
-            parent_categories = (
-                Category.query.filter_by(level=parent_level)
-                .order_by(Category.name)
-                .all()
-            )
+
+        # 获取一级分类
+        level1_categories = (
+            Category.query.filter_by(level=1)
+            .filter(Category.id != category_id)
+            .order_by("name")
+            .all()
+        )
+        for cat in level1_categories:
+            if not is_descendant_of(cat.id, category_id):
+                parent_categories.append(cat)
+
+        # 获取二级分类
+        level2_categories = (
+            Category.query.filter_by(level=2)
+            .filter(Category.id != category_id)
+            .order_by("name")
+            .all()
+        )
+        for cat in level2_categories:
+            if not is_descendant_of(cat.id, category_id):
+                parent_categories.append(cat)
 
         return jsonify(
             {
@@ -83,7 +108,7 @@ def get_parent_categories_api(level):
 
         parent_level = level - 1
         parent_categories = (
-            Category.query.filter_by(level=parent_level).order_by(Category.name).all()
+            Category.query.filter_by(level=parent_level).order_by("name").all()
         )
 
         return jsonify(
@@ -97,9 +122,7 @@ def get_parent_categories_api(level):
 def get_children_api(parent_id):
     """获取子分类API（用于动态加载）"""
     try:
-        children = (
-            Category.query.filter_by(parent_id=parent_id).order_by(Category.name).all()
-        )
+        children = Category.query.filter_by(parent_id=parent_id).order_by("name").all()
         return jsonify(
             {"success": True, "data": [child.to_dict() for child in children]}
         )

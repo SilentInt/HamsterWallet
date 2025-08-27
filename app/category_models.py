@@ -53,6 +53,35 @@ class Category(db.Model):
             descendants.extend(child.get_descendants())
         return descendants
 
+    def validate_level_change(self, new_level):
+        """验证层级变更是否会导致子分类超过3级限制"""
+
+        def check_depth(category, current_level):
+            children = Category.query.filter_by(parent_id=category.id).all()
+            for child in children:
+                child_new_level = current_level + 1
+                if child_new_level > 3:
+                    raise ValueError(
+                        f"更新后会导致分类 '{child.name}' 的层级超过3级限制"
+                    )
+                check_depth(child, child_new_level)
+
+        # 从新的层级开始检查
+        check_depth(self, new_level)
+
+    def update_children_levels(self):
+        """递归更新所有子分类的层级"""
+        from .database import db
+
+        children = Category.query.filter_by(parent_id=self.id).all()
+        parent_level = getattr(self, "level")  # 使用getattr来获取实际值
+        for child in children:
+            new_level = parent_level + 1
+            child.level = new_level
+            db.session.add(child)
+            # 递归更新子分类的子分类
+            child.update_children_levels()
+
     def delete_with_descendants(self) -> int:
         """删除自己及所有后代分类
 

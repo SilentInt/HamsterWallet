@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from .category_models import Category
 from .database import db
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_
 
 category_bp = Blueprint("category_api", __name__, url_prefix="/api/category")
 
@@ -80,7 +81,7 @@ def get_categories():
         if parent_id:
             query = query.filter_by(parent_id=parent_id)
 
-        categories = query.order_by(Category.name).all()
+        categories = query.order_by("name").all()
 
         return jsonify(
             {"success": True, "data": [category.to_dict() for category in categories]}
@@ -120,9 +121,7 @@ def get_category(category_id):
 
         # 添加子分类信息
         children = (
-            Category.query.filter_by(parent_id=category_id)
-            .order_by(Category.name)
-            .all()
+            Category.query.filter_by(parent_id=category_id).order_by("name").all()
         )
         result["children"] = [child.to_dict() for child in children]
 
@@ -233,6 +232,12 @@ def update_category(category_id):
                         400,
                     )
 
+                # 验证更新后不会导致子分类超过3级限制
+                try:
+                    category.validate_level_change(new_level)
+                except ValueError as ve:
+                    return jsonify({"success": False, "message": str(ve)}), 400
+
                 # 检查是否会造成循环引用
                 if parent_id == category_id or _is_ancestor(category_id, parent_id):
                     return (
@@ -247,17 +252,23 @@ def update_category(category_id):
 
                 category.parent_id = parent_id
                 category.level = new_level
+                # 递归更新所有子分类的层级
+                category.update_children_levels()
             else:
                 # 设置为顶级分类
                 category.parent_id = None
                 category.level = 1
+                # 递归更新所有子分类的层级
+                category.update_children_levels()
 
         # 检查同级分类名称是否重复（排除自己）
         existing = Category.query.filter(
-            Category.name == name,
-            Category.level == category.level,
-            Category.parent_id == category.parent_id,
-            Category.id != category_id,
+            and_(
+                getattr(Category, "name") == name,
+                getattr(Category, "level") == category.level,
+                getattr(Category, "parent_id") == category.parent_id,
+                getattr(Category, "id") != category_id,
+            )
         ).first()
 
         if existing:

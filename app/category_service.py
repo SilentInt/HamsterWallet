@@ -1,6 +1,7 @@
 # app/category_service.py
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 from .database import db
 from .category_models import Category
 
@@ -13,9 +14,7 @@ class CategoryService:
         """获取分类树结构"""
         try:
             # 获取一级分类
-            level1_categories = (
-                Category.query.filter_by(level=1).order_by(Category.name).all()
-            )
+            level1_categories = Category.query.filter_by(level=1).order_by("name").all()
 
             tree = []
             for cat1 in level1_categories:
@@ -25,7 +24,7 @@ class CategoryService:
                 # 获取二级分类
                 level2_categories = (
                     Category.query.filter_by(parent_id=cat1.id, level=2)
-                    .order_by(Category.name)
+                    .order_by("name")
                     .all()
                 )
                 for cat2 in level2_categories:
@@ -35,7 +34,7 @@ class CategoryService:
                     # 获取三级分类
                     level3_categories = (
                         Category.query.filter_by(parent_id=cat2.id, level=3)
-                        .order_by(Category.name)
+                        .order_by("name")
                         .all()
                     )
                     for cat3 in level3_categories:
@@ -138,22 +137,31 @@ class CategoryService:
                     if new_level > 3:
                         raise ValueError("分类层级不能超过3级")
 
+                    # 验证更新后不会导致子分类超过3级限制
+                    category.validate_level_change(new_level)
+
                     # 检查是否会造成循环引用
                     if CategoryService._is_ancestor(category_id, parent_id):
                         raise ValueError("不能将分类设置为自己或子分类的子分类")
 
                     category.parent_id = parent_id
                     category.level = new_level
+                    # 递归更新所有子分类的层级
+                    category.update_children_levels()
                 else:
                     category.parent_id = None
                     category.level = 1
+                    # 递归更新所有子分类的层级
+                    category.update_children_levels()
 
             # 检查同级分类名称是否重复（排除自己）
             existing = Category.query.filter(
-                Category.name == name,
-                Category.level == category.level,
-                Category.parent_id == category.parent_id,
-                Category.id != category_id,
+                and_(
+                    getattr(Category, "name") == name,
+                    getattr(Category, "level") == category.level,
+                    getattr(Category, "parent_id") == category.parent_id,
+                    getattr(Category, "id") != category_id,
+                )
             ).first()
 
             if existing:
@@ -213,11 +221,7 @@ class CategoryService:
                 return []
 
             parent_level = level - 1
-            return (
-                Category.query.filter_by(level=parent_level)
-                .order_by(Category.name)
-                .all()
-            )
+            return Category.query.filter_by(level=parent_level).order_by("name").all()
 
         except Exception as e:
             print(f"获取父分类选项失败: {str(e)}")
@@ -246,7 +250,7 @@ class CategoryService:
     def get_categories_by_level(level: int) -> List[Category]:
         """根据级别获取分类列表"""
         try:
-            return Category.query.filter_by(level=level).order_by(Category.name).all()
+            return Category.query.filter_by(level=level).order_by("name").all()
         except Exception as e:
             print(f"获取分类列表失败: {str(e)}")
             return []

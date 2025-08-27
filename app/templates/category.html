@@ -634,20 +634,17 @@
         document.getElementById('editCategoryId').value = categoryId;
         document.getElementById('editCategoryName').value = categoryName;
 
-        // 根据级别处理父分类选择
+        // 处理父分类选择（所有级别的分类都可以选择父分类）
         const parentGroup = document.getElementById('editParentCategoryGroup');
         const parentSelect = document.getElementById('editParentCategory');
 
-        if (categoryLevel > 1) {
-            parentGroup.style.display = 'block';
-            // 清空选项
-            parentSelect.innerHTML = '<option value="">选择父分类</option>';
+        // 显示父分类选择框
+        parentGroup.style.display = 'block';
+        // 清空选项
+        parentSelect.innerHTML = '<option value="">设为顶级分类</option>';
 
-            // 根据级别加载可选的父分类
-            loadParentCategoriesForEdit(categoryLevel, categoryParent, parentSelect);
-        } else {
-            parentGroup.style.display = 'none';
-        }
+        // 加载可选的父分类选项
+        loadParentCategoriesForEdit(categoryId, categoryParent, parentSelect);
 
         // 显示模态框
         const editModal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
@@ -655,15 +652,17 @@
     }
 
     // 为编辑分类加载父分类选项
-    function loadParentCategoriesForEdit(level, currentParent, selectElement) {
-        fetch(`/category/api/parent-categories/${level}`)
+        function loadParentCategoriesForEdit(categoryId, currentParent, selectElement) {
+            fetch(`/category/api/category/${categoryId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    data.data.forEach(category => {
+                    data.data.parent_categories.forEach(category => {
                         const option = document.createElement('option');
                         option.value = category.id;
-                        option.textContent = category.name;
+                        // 显示分类级别和名称
+                        const levelText = category.level === 1 ? '一级' : '二级';
+                        option.textContent = `${levelText} - ${category.name}`;
                         if (category.id == currentParent) {
                             option.selected = true;
                         }
