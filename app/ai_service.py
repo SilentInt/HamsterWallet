@@ -177,7 +177,7 @@ class AIService:
             response = client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,  # type: ignore
-                # temperature=self.temperature,
+                temperature=self.temperature,
             )
 
             response_content = response.choices[0].message.content
