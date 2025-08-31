@@ -42,10 +42,10 @@
                     <!-- 特价筛选 -->
                     <div class="col-md-2 filter-form-group">
                         <label class="filter-label">特价</label>
-                        <select class="form-select" name="is_special_price">
+                        <select class="form-select" name="is_special_offer">
                             <option value="">全部商品</option>
-                            <option value="true" {{ 'selected' if request.args.get('is_special_price') == 'true' }}>特价商品</option>
-                            <option value="false" {{ 'selected' if request.args.get('is_special_price') == 'false' }}>非特价</option>
+                            <option value="true" {{ 'selected' if request.args.get('is_special_offer') == 'true' }}>特价商品</option>
+                            <option value="false" {{ 'selected' if request.args.get('is_special_offer') == 'false' }}>非特价</option>
                         </select>
                     </div>
                     
@@ -220,7 +220,7 @@
             </div>
             <h5 class="fw-bold mb-3 text-primary">暂无商品信息</h5>
             <p class="text-muted mb-4 px-3">
-                {% set has_filters = request.args.get('search') or request.args.get('is_special_price') or request.args.get('category_filter') or request.args.get('sort_by') != 'created_at' or request.args.get('order') == 'asc' %}
+                {% set has_filters = request.args.get('search') or request.args.get('is_special_offer') or request.args.get('category_filter') or request.args.get('sort_by') != 'created_at' or request.args.get('order') == 'asc' %}
                 {% if has_filters %}
                 <i class="fas fa-filter me-2"></i>当前筛选条件下没有找到商品，请尝试调整筛选条件
                 {% else %}
@@ -249,7 +249,7 @@
             data-next-page="{{ pagination.page + 1 }}"
             data-total-pages="{{ pagination.pages }}"
             data-search="{{ request.args.get('search', '') }}"
-            data-is-special-price="{{ request.args.get('is_special_price', '') }}"
+            data-is-special-offer="{{ request.args.get('is_special_offer', '') }}"
             data-category-filter="{{ request.args.get('category_filter', '') }}"
             data-sort-by="{{ request.args.get('sort_by', 'created_at') }}"
             data-order="{{ request.args.get('order', 'desc') }}">

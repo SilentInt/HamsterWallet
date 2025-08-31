@@ -276,8 +276,8 @@ class ReceiptService:
             query = query.order_by(sort_field.desc())
 
         # 分页
-        page = args.get("page", 1, type=int)
-        per_page = args.get("per_page", 20, type=int)
+        page = int(args.get("page", 1))
+        per_page = int(args.get("per_page", 20))
         paginated_query = query.paginate(page=page, per_page=per_page, error_out=False)
 
         return paginated_query.items, paginated_query
@@ -449,8 +449,9 @@ class ItemService:
             )
 
         # 特价筛选
-        if "is_special_price" in args:
-            is_special = args.get("is_special_price", "").lower() == "true"
+        is_special_offer = args.get("is_special_offer")
+        if is_special_offer and is_special_offer.strip():  # 只有当参数不为空时才筛选
+            is_special = is_special_offer.lower() == "true"
             if is_special:
                 # 筛选特价商品：直接使用is_special_offer字段
                 query = query.filter(Item.is_special_offer == True)
@@ -458,13 +459,30 @@ class ItemService:
                 # 筛选非特价商品：直接使用is_special_offer字段
                 query = query.filter(Item.is_special_offer == False)
 
-        # 分类筛选
+        # 分类筛选 - 支持搜索三级分类中的任意一级
         if category_filter := args.get("category_filter"):
             category_term = f"%{category_filter}%"
-            # 使用JOIN查询分类表
-            query = query.join(Category, Item.category_id == Category.id).filter(
-                getattr(Category, "name").ilike(category_term)
-            )
+            
+            # 查找所有匹配的分类（任意级别）
+            matching_categories = Category.query.filter(
+                Category.name.ilike(category_term)
+            ).all()
+            
+            if matching_categories:
+                # 收集所有相关的分类ID（包括匹配分类及其所有后代）
+                category_ids = set()
+                
+                for category in matching_categories:
+                    # 添加匹配的分类本身
+                    category_ids.add(category.id)
+                    
+                    # 添加所有后代分类
+                    descendants = category.get_descendants()
+                    for desc in descendants:
+                        category_ids.add(desc.id)
+                
+                # 筛选属于这些分类的商品
+                query = query.filter(Item.category_id.in_(list(category_ids)))
 
         # 排序
         sort_by = args.get("sort_by", "created_at")
@@ -492,8 +510,8 @@ class ItemService:
             query = query.order_by(sort_field.desc())
 
         # 分页
-        page = args.get("page", 1, type=int)
-        per_page = args.get("per_page", 12, type=int)
+        page = int(args.get("page", 1))
+        per_page = int(args.get("per_page", 12))
         paginated_query = query.paginate(page=page, per_page=per_page, error_out=False)
 
         return paginated_query.items, paginated_query
@@ -540,17 +558,35 @@ class ExportService:
         if store_category := args.get("store_category"):
             query = query.filter(Receipt.store_category.ilike(f"%{store_category}%"))
 
-        # 商品分类筛选
+        # 商品分类筛选 - 支持搜索三级分类中的任意一级
         if category := args.get("category"):
             category_term = f"%{category}%"
-            # 使用JOIN查询分类表
-            query = query.join(Category, Item.category_id == Category.id).filter(
-                getattr(Category, "name").ilike(category_term)
-            )
+            
+            # 查找所有匹配的分类（任意级别）
+            matching_categories = Category.query.filter(
+                Category.name.ilike(category_term)
+            ).all()
+            
+            if matching_categories:
+                # 收集所有相关的分类ID（包括匹配分类及其所有后代）
+                category_ids = set()
+                
+                for category_obj in matching_categories:
+                    # 添加匹配的分类本身
+                    category_ids.add(category_obj.id)
+                    
+                    # 添加所有后代分类
+                    descendants = category_obj.get_descendants()
+                    for desc in descendants:
+                        category_ids.add(desc.id)
+                
+                # 筛选属于这些分类的商品
+                query = query.filter(Item.category_id.in_(list(category_ids)))
 
         # 特价商品筛选
-        if "is_special_offer" in args:
-            is_special = args.get("is_special_offer", "").lower() == "true"
+        is_special_offer = args.get("is_special_offer")
+        if is_special_offer and is_special_offer.strip():  # 只有当参数不为空时才筛选
+            is_special = is_special_offer.lower() == "true"
             query = query.filter(Item.is_special_offer == is_special)
 
         # 状态筛选
@@ -596,8 +632,10 @@ class ExportService:
             query = query.order_by(sort_field.desc())
 
         # 分页
-        page = args.get("page", 1, type=int)
-        per_page = args.get("per_page", None, type=int)
+        page = int(args.get("page", 1))
+        per_page = args.get("per_page")
+        if per_page is not None:
+            per_page = int(per_page)
 
         # 如果没有指定每页记录数，则不做限制
         if per_page is None:
@@ -876,12 +914,30 @@ class AnalyticsService:
                 pass
 
         # 商品分类筛选
+        # 商品分类筛选 - 支持搜索三级分类中的任意一级
         if category := args.get("category"):
             category_term = f"%{category}%"
-            # 使用JOIN查询分类表
-            query = query.join(Category, Item.category_id == Category.id).filter(
-                getattr(Category, "name").ilike(category_term)
-            )
+            
+            # 查找所有匹配的分类（任意级别）
+            matching_categories = Category.query.filter(
+                Category.name.ilike(category_term)
+            ).all()
+            
+            if matching_categories:
+                # 收集所有相关的分类ID（包括匹配分类及其所有后代）
+                category_ids = set()
+                
+                for category_obj in matching_categories:
+                    # 添加匹配的分类本身
+                    category_ids.add(category_obj.id)
+                    
+                    # 添加所有后代分类
+                    descendants = category_obj.get_descendants()
+                    for desc in descendants:
+                        category_ids.add(desc.id)
+                
+                # 筛选属于这些分类的商品
+                query = query.filter(Item.category_id.in_(list(category_ids)))
 
         # 店铺筛选
         if store_name := args.get("store_name"):
@@ -891,8 +947,9 @@ class AnalyticsService:
             query = query.filter(Receipt.store_category.ilike(f"%{store_category}%"))
 
         # 特价商品筛选
-        if "is_special_offer" in args:
-            is_special = args.get("is_special_offer", "").lower() == "true"
+        is_special_offer = args.get("is_special_offer")
+        if is_special_offer and is_special_offer.strip():  # 只有当参数不为空时才筛选
+            is_special = is_special_offer.lower() == "true"
             query = query.filter(Item.is_special_offer == is_special)
 
         # 获取所有数据
