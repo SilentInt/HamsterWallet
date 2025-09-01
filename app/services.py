@@ -1052,6 +1052,15 @@ class AnalyticsService:
             for receipt, item in results:
                 if receipt.transaction_time:
                     date_key = receipt.transaction_time.date()
+                    
+                    # 在均摊模式下，过滤掉不在均摊期内的耐用品
+                    if item.durable_info:
+                        durable_info = item.durable_info
+                        if (durable_info.start_date and durable_info.end_date and 
+                            not (durable_info.start_date <= date_key <= durable_info.end_date)):
+                            # 耐用品不在均摊期内，跳过
+                            continue
+                    
                     if date_key not in items_by_date:
                         items_by_date[date_key] = []
                     items_by_date[date_key].append(item)
@@ -1164,11 +1173,22 @@ class AnalyticsService:
             item_ids = set()
             combined_items = []
             
-            # 添加当日购买的商品
+            # 添加当日购买的商品，但过滤掉不在均摊期内的耐用品
             for item in daily_items:
                 if item.id not in item_ids:
-                    combined_items.append(item)
-                    item_ids.add(item.id)
+                    # 如果是耐用品，检查是否在均摊期内
+                    if item.durable_info:
+                        durable_info = item.durable_info
+                        if (durable_info.start_date and durable_info.end_date and 
+                            durable_info.start_date <= target_date <= durable_info.end_date):
+                            # 在均摊期内，添加
+                            combined_items.append(item)
+                            item_ids.add(item.id)
+                        # 不在均摊期内的耐用品不添加
+                    else:
+                        # 常规商品，直接添加
+                        combined_items.append(item)
+                        item_ids.add(item.id)
             
             # 添加有均摊成本的耐用品
             for item in all_durable_items:
@@ -1226,9 +1246,8 @@ class AnalyticsService:
                         "daily_cost_cny": round(daily_cost_cny, 2),
                     }
                 else:
-                    # 不在均摊期间内，成本为0
-                    display_jpy, display_cny = 0, 0
-                    is_amortized = True
+                    # 不在均摊期间内，跳过此商品（不显示）
+                    continue
             else:
                 # 常规商品或非均摊模式
                 display_jpy, display_cny = item.price_jpy or 0, item.price_cny or 0
@@ -1718,6 +1737,7 @@ class AnalyticsService:
                         
                         total_jpy += daily_jpy * overlap_days
                         total_cny += daily_cny * overlap_days
+                # 如果没有重叠期间，该耐用品在此期间内的成本为0，不计入总成本
                         
         return {'jpy': total_jpy, 'cny': total_cny}
 
