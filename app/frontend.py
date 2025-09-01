@@ -79,6 +79,12 @@ def data_mining():
     return render_template("data_mining.html")
 
 
+@frontend_bp.route("/settings")
+def settings():
+    """系统设定页"""
+    return render_template("settings.html")
+
+
 @frontend_bp.route("/config")
 def get_config():
     """提供前端配置信息"""

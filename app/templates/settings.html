@@ -1,0 +1,847 @@
+{% extends "base.html" %}
+{% block title %}系统设定 - 仓鼠记账{% endblock %}
+
+{% block extra_css %}
+<style>
+    .setting-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .setting-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .setting-header {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+        border-radius: 12px 12px 0 0;
+        padding: 1rem 1.5rem;
+    }
+
+    .setting-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .setting-header i {
+        margin-right: 0.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        padding: 0.75rem 1rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+    }
+
+    .alert {
+        border-radius: 8px;
+        border: none;
+    }
+
+    .form-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+
+    .progress {
+        height: 8px;
+        border-radius: 4px;
+        background-color: #e9ecef;
+    }
+
+    .progress-bar {
+        border-radius: 4px;
+    }
+
+    .file-upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        transition: border-color 0.2s ease;
+        cursor: pointer;
+    }
+
+    .file-upload-area:hover {
+        border-color: #007bff;
+        background-color: #f8f9fa;
+    }
+
+    .file-upload-area.dragover {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-cog"></i> 系统设定</h1>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- AI API 设定 -->
+        <div class="col-lg-6 col-md-12">
+            <div class="card setting-card">
+                <div class="setting-header">
+                    <h5><i class="fas fa-robot"></i> AI API 设定</h5>
+                </div>
+                <div class="card-body">
+                    <form id="aiSettingsForm">
+                        <div class="mb-3">
+                            <label for="apiBaseUrl" class="form-label">API Base URL</label>
+                            <input type="url" class="form-control" id="apiBaseUrl" name="apiBaseUrl"
+                                placeholder="https://api.openai.com/v1">
+                            <div class="form-text">API服务地址，支持OpenAI兼容接口</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="apiKey" class="form-label">API Key</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="apiKey" name="apiKey"
+                                    placeholder="sk-...">
+                                <button class="btn btn-outline-secondary" type="button" id="toggleApiKey">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">您的API密钥，请妥善保管</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modelName" class="form-label">模型名称</label>
+                            <input type="text" class="form-control" id="modelName" name="modelName"
+                                placeholder="gpt-4o-mini">
+                            <div class="form-text">使用的AI模型名称</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="temperature" class="form-label">Temperature (温度)</label>
+                            <input type="range" class="form-range" id="temperature" name="temperature" min="0" max="2"
+                                step="0.1" value="0.1">
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">0 (精确)</small>
+                                <small class="text-muted" id="temperatureValue">0.1</small>
+                                <small class="text-muted">2 (创造)</small>
+                            </div>
+                            <div class="form-text">控制AI输出的随机性，数值越高越随机</div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save"></i> 保存 AI 设定
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Prompt 设定 -->
+        <div class="col-lg-6 col-md-12">
+            <div class="card setting-card">
+                <div class="setting-header">
+                    <h5><i class="fas fa-comment-dots"></i> AI Prompt 设定</h5>
+                </div>
+                <div class="card-body">
+                    <form id="promptSettingsForm">
+                        <div class="mb-3">
+                            <label for="receiptPrompt" class="form-label">小票识别 Prompt</label>
+                            <textarea class="form-control" id="receiptPrompt" name="receiptPrompt" rows="12"
+                                placeholder="请输入小票识别的提示词..."></textarea>
+                            <div class="form-text">
+                                用于指导AI识别小票内容的提示词。提示词中可以使用 {categories} 占位符来插入分类列表。
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-2"
+                                    onclick="resetPromptToDefault()">恢复默认</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="categoryPrompt" class="form-label">分类识别 Prompt</label>
+                            <textarea class="form-control" id="categoryPrompt" name="categoryPrompt" rows="4"
+                                placeholder="请输入分类识别的提示词..."></textarea>
+                            <div class="form-text">用于指导AI进行商品分类的提示词</div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save"></i> 保存 Prompt 设定
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 数据备份 -->
+        <div class="col-lg-6 col-md-12">
+            <div class="card setting-card">
+                <div class="setting-header">
+                    <h5><i class="fas fa-download"></i> 数据备份</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">备份您的所有数据，包括数据库和上传的图片文件。</p>
+
+                    <div class="mb-3">
+                        <label class="form-label">备份范围</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="backupDatabase" checked>
+                            <label class="form-check-label" for="backupDatabase">
+                                数据库 (小票、商品、分类等数据)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="backupImages" checked>
+                            <label class="form-check-label" for="backupImages">
+                                上传的图片文件
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="backupSettings">
+                            <label class="form-check-label" for="backupSettings">
+                                系统设定和配置
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-save" id="startBackup">
+                            <i class="fas fa-download"></i> 开始备份
+                        </button>
+                        <div class="progress d-none" id="backupProgress">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据恢复 -->
+        <div class="col-lg-6 col-md-12">
+            <div class="card setting-card">
+                <div class="setting-header">
+                    <h5><i class="fas fa-upload"></i> 数据恢复</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">从备份文件恢复数据。<strong class="text-warning">注意：此操作将覆盖当前数据！</strong></p>
+
+                    <form id="restoreForm" enctype="multipart/form-data">
+                        <div class="restore-upload-area mb-3">
+                            <div class="file-upload-area" id="restoreDropArea">
+                                <div id="restoreUploadPlaceholder">
+                                    <div class="upload-icon text-muted">
+                                        <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                                    </div>
+                                    <div class="upload-text">
+                                        <p class="mb-1"><strong>点击或拖拽文件到此处</strong></p>
+                                        <p class="text-muted small">支持 .zip 格式的备份文件</p>
+                                    </div>
+                                </div>
+                                <div id="restoreFilePreview" style="display: none;">
+                                    <div class="file-preview-content">
+                                        <i class="fas fa-file-archive fa-2x text-primary"></i>
+                                        <div class="file-name"></div>
+                                        <div class="file-size text-muted small"></div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="clearRestoreFile()">重新选择</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="file" id="restoreFileInput" name="backup_file" class="d-none" accept=".zip">
+                        </div>
+
+                        <div class="alert alert-warning d-none" id="restoreWarning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>警告：</strong>恢复操作将完全替换当前数据，请确保您已备份当前重要数据！
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger" id="startRestore" disabled>
+                                <i class="fas fa-upload"></i> 开始恢复
+                            </button>
+                            <div class="progress d-none" id="restoreProgress">
+                                <div class="progress-bar bg-danger" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 系统信息 -->
+        <div class="col-12">
+            <div class="card setting-card">
+                <div class="setting-header">
+                    <h5><i class="fas fa-info-circle"></i> 系统信息</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>应用版本：</strong></td>
+                                    <td>仓鼠记账 v1.0.0</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>数据库：</strong></td>
+                                    <td id="dbInfo">SQLite</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>上传目录：</strong></td>
+                                    <td id="uploadPath">uploads/</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>小票数量：</strong></td>
+                                    <td id="receiptCount">-</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>商品数量：</strong></td>
+                                    <td id="itemCount">-</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>存储空间：</strong></td>
+                                    <td id="storageUsage">-</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 确认对话框 -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                    确认操作
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">您确定要执行此操作吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmOk">
+                    <i class="fas fa-check"></i> 确认
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function () {
+        // 页面加载时获取当前设定
+        loadCurrentSettings();
+        loadSystemInfo();
+
+        // Temperature滑块值显示
+        $('#temperature').on('input', function () {
+            $('#temperatureValue').text($(this).val());
+        });
+
+        // API Key显示/隐藏切换
+        $('#toggleApiKey').click(function () {
+            const apiKeyInput = $('#apiKey');
+            const icon = $(this).find('i');
+
+            if (apiKeyInput.attr('type') === 'password') {
+                apiKeyInput.attr('type', 'text');
+                icon.removeClass('fa-eye').addClass('fa-eye-slash');
+            } else {
+                apiKeyInput.attr('type', 'password');
+                icon.removeClass('fa-eye-slash').addClass('fa-eye');
+            }
+        });
+
+        // AI设定表单提交
+        $('#aiSettingsForm').submit(function (e) {
+            e.preventDefault();
+            saveAISettings();
+        });
+
+        // Prompt设定表单提交
+        $('#promptSettingsForm').submit(function (e) {
+            e.preventDefault();
+            savePromptSettings();
+        });
+
+        // 备份按钮点击
+        $('#startBackup').click(function () {
+            showConfirm('确定要开始备份吗？备份过程可能需要几分钟时间。', function () {
+                startBackup();
+            });
+        });
+
+        // 恢复文件上传功能 - 参考receipt页面的实现
+        const restoreFileInput = document.getElementById('restoreFileInput');
+        const restoreDropArea = document.getElementById('restoreDropArea');
+        const restoreFilePreview = document.getElementById('restoreFilePreview');
+        const restoreUploadPlaceholder = document.getElementById('restoreUploadPlaceholder');
+        const restoreForm = document.getElementById('restoreForm');
+        const startRestoreBtn = document.getElementById('startRestore');
+
+        // 防止默认拖拽行为
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        if (restoreDropArea && restoreFileInput) {
+            // 点击上传
+            restoreDropArea.addEventListener('click', (e) => {
+                if (e.target === restoreDropArea || e.target.closest('#restoreUploadPlaceholder')) {
+                    restoreFileInput.click();
+                }
+            });
+
+            // 拖拽上传功能
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                restoreDropArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                restoreDropArea.addEventListener(eventName, function (e) {
+                    restoreDropArea.classList.add('drag-over');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                restoreDropArea.addEventListener(eventName, function (e) {
+                    restoreDropArea.classList.remove('drag-over');
+                }, false);
+            });
+
+            restoreDropArea.addEventListener('drop', function (e) {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
+                        // 创建新的 FileList
+                        const fileList = new DataTransfer();
+                        fileList.items.add(file);
+                        restoreFileInput.files = fileList.files;
+                        handleRestoreFilePreview(file);
+                    } else {
+                        showAlert('请选择ZIP格式的备份文件', 'warning');
+                    }
+                }
+            });
+
+            // 文件选择变化事件
+            restoreFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    handleRestoreFilePreview(file);
+                }
+            });
+        }
+
+        // 处理恢复文件预览
+        function handleRestoreFilePreview(file) {
+            // 已去除文件大小限制，允许上传任意大小的备份文件
+
+            // 显示文件预览
+            const fileName = restoreFilePreview.querySelector('.file-name');
+            const fileSize = restoreFilePreview.querySelector('.file-size');
+            
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            
+            restoreUploadPlaceholder.style.display = 'none';
+            restoreFilePreview.style.display = 'block';
+            
+            // 显示警告和恢复按钮
+            $('#restoreWarning').removeClass('d-none');
+            startRestoreBtn.disabled = false;
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 恢复表单提交
+        if (restoreForm) {
+            restoreForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!restoreFileInput.files[0]) {
+                    showToast('请选择备份文件', 'warning');
+                    return;
+                }
+
+                showConfirm('确定要从备份文件恢复数据吗？此操作将完全替换当前所有数据，且不可撤销！', function () {
+                    startRestore();
+                });
+            });
+        }
+    });
+
+    // 辅助函数：显示确认对话框
+    function showConfirm(message, onConfirm) {
+        if (confirm(message)) {
+            onConfirm();
+        }
+    }
+
+    // 加载当前设定
+    function loadCurrentSettings() {
+        $.get('/api/settings', function (data) {
+            if (data.success) {
+                const settings = data.data;
+
+                // AI设定
+                $('#apiBaseUrl').val(settings.api_base_url || '');
+                $('#apiKey').val(settings.api_key || '');
+                $('#modelName').val(settings.model_name || '');
+                $('#temperature').val(settings.temperature || 0.1);
+                $('#temperatureValue').text(settings.temperature || 0.1);
+
+                // Prompt设定
+                $('#receiptPrompt').val(settings.receipt_prompt || '');
+                $('#categoryPrompt').val(settings.category_prompt || '');
+            }
+        }).fail(function () {
+            showAlert('加载设定失败', 'danger');
+        });
+    }
+
+    // 加载系统信息
+    function loadSystemInfo() {
+        $.get('/api/system-info', function (data) {
+            if (data.success) {
+                const info = data.data;
+                $('#receiptCount').text(info.receipt_count || 0);
+                $('#itemCount').text(info.item_count || 0);
+                $('#storageUsage').text(info.storage_usage || '-');
+                $('#uploadPath').text(info.upload_path || 'uploads/');
+            }
+        });
+    }
+
+    // 保存AI设定
+    function saveAISettings() {
+        const formData = {
+            api_base_url: $('#apiBaseUrl').val(),
+            api_key: $('#apiKey').val(),
+            model_name: $('#modelName').val(),
+            temperature: parseFloat($('#temperature').val())
+        };
+
+        $.ajax({
+            url: '/api/settings/ai',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function (data) {
+                if (data.success) {
+                    showAlert('AI设定保存成功！', 'success');
+                } else {
+                    showAlert('保存失败：' + data.message, 'danger');
+                }
+            },
+            error: function () {
+                showAlert('保存AI设定失败', 'danger');
+            }
+        });
+    }
+
+    // 保存Prompt设定
+    function savePromptSettings() {
+        const formData = {
+            receipt_prompt: $('#receiptPrompt').val(),
+            category_prompt: $('#categoryPrompt').val()
+        };
+
+        $.ajax({
+            url: '/api/settings/prompt',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function (data) {
+                if (data.success) {
+                    showAlert('Prompt设定保存成功！', 'success');
+                } else {
+                    showAlert('保存失败：' + data.message, 'danger');
+                }
+            },
+            error: function () {
+                showAlert('保存Prompt设定失败', 'danger');
+            }
+        });
+    }
+
+    // 开始备份
+    function startBackup() {
+        const options = {
+            include_database: $('#backupDatabase').is(':checked'),
+            include_images: $('#backupImages').is(':checked'),
+            include_settings: $('#backupSettings').is(':checked')
+        };
+
+        $('#startBackup').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> 备份中...');
+        $('#backupProgress').removeClass('d-none');
+
+        // 模拟进度更新
+        let progress = 0;
+        const progressInterval = setInterval(function () {
+            progress += Math.random() * 20;
+            if (progress > 90) progress = 90;
+            $('#backupProgress .progress-bar').css('width', progress + '%');
+        }, 500);
+
+        // 使用XMLHttpRequest来处理文件下载
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/backup', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.responseType = 'blob';
+
+        xhr.onload = function() {
+            clearInterval(progressInterval);
+            $('#backupProgress .progress-bar').css('width', '100%');
+
+            if (xhr.status === 200) {
+                // 成功，创建下载链接
+                const blob = xhr.response;
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `hamster_backup_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showAlert('备份完成！', 'success');
+            } else {
+                // 错误，尝试解析错误消息
+                const reader = new FileReader();
+                reader.onload = function() {
+                    try {
+                        const errorData = JSON.parse(reader.result);
+                        showAlert('备份失败：' + errorData.message, 'danger');
+                    } catch (e) {
+                        showAlert('备份过程中发生错误', 'danger');
+                    }
+                };
+                reader.readAsText(xhr.response);
+            }
+        };
+
+        xhr.onerror = function() {
+            clearInterval(progressInterval);
+            showAlert('备份过程中发生网络错误', 'danger');
+        };
+
+        xhr.onloadend = function() {
+            $('#startBackup').prop('disabled', false).html('<i class="fas fa-download"></i> 开始备份');
+            setTimeout(function () {
+                $('#backupProgress').addClass('d-none');
+                $('#backupProgress .progress-bar').css('width', '0%');
+            }, 2000);
+        };
+
+        xhr.send(JSON.stringify(options));
+    }
+
+    // 开始恢复
+    function startRestore() {
+        const fileInput = $('#restoreFileInput')[0];
+        if (!fileInput.files[0]) {
+            showAlert('请先选择备份文件', 'warning');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('backup_file', fileInput.files[0]);
+
+        $('#startRestore').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> 恢复中...');
+        $('#restoreProgress').removeClass('d-none');
+
+        // 模拟进度更新
+        let progress = 0;
+        const progressInterval = setInterval(function () {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            $('#restoreProgress .progress-bar').css('width', progress + '%');
+        }, 500);
+
+        $.ajax({
+            url: '/api/restore',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (data) {
+                clearInterval(progressInterval);
+                $('#restoreProgress .progress-bar').css('width', '100%');
+
+                if (data.success) {
+                    showAlert('恢复完成！页面将在3秒后刷新。', 'success');
+                    setTimeout(function () {
+                        window.location.reload();
+                    }, 3000);
+                } else {
+                    showAlert('恢复失败：' + data.message, 'danger');
+                }
+            },
+            error: function () {
+                clearInterval(progressInterval);
+                showAlert('恢复过程中发生错误', 'danger');
+            },
+            complete: function () {
+                $('#startRestore').prop('disabled', false).html('<i class="fas fa-upload"></i> 开始恢复');
+                setTimeout(function () {
+                    $('#restoreProgress').addClass('d-none');
+                    $('#restoreProgress .progress-bar').css('width', '0%');
+                }, 2000);
+            }
+        });
+    }
+
+    // 清除恢复文件
+    function clearRestoreFile() {
+        const restoreFileInput = document.getElementById('restoreFileInput');
+        const restoreFilePreview = document.getElementById('restoreFilePreview');
+        const restoreUploadPlaceholder = document.getElementById('restoreUploadPlaceholder');
+        const startRestoreBtn = document.getElementById('startRestore');
+        
+        restoreFileInput.value = '';
+        restoreFilePreview.style.display = 'none';
+        restoreUploadPlaceholder.style.display = 'block';
+        startRestoreBtn.disabled = true;
+        $('#restoreWarning').addClass('d-none');
+    }
+
+    // 恢复默认Prompt
+    function resetPromptToDefault() {
+        $.get('/api/settings/default-prompt', function (data) {
+            if (data.success) {
+                $('#receiptPrompt').val(data.prompt);
+                showAlert('已恢复为默认Prompt', 'info');
+            } else {
+                showAlert('获取默认Prompt失败', 'danger');
+            }
+        }).fail(function () {
+            showAlert('获取默认Prompt失败', 'danger');
+        });
+    }
+
+    // 显示确认对话框
+    function showConfirm(message, callback) {
+        $('#confirmMessage').text(message);
+        $('#confirmModal').modal('show');
+
+        $('#confirmOk').off('click').on('click', function () {
+            $('#confirmModal').modal('hide');
+            callback();
+        });
+    }
+
+    // 显示提示消息
+    function showAlert(message, type) {
+        const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+        $('.container-fluid').prepend(alertHtml);
+
+        // 3秒后自动隐藏
+        setTimeout(function () {
+            $('.alert').first().alert('close');
+        }, 3000);
+    }
+</script>
+{% endblock %}

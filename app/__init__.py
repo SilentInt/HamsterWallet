@@ -8,6 +8,7 @@ from .database import db, ma
 from .frontend import frontend_bp
 from .category_api import category_bp
 from .category_frontend import category_frontend_bp
+from .settings_api import settings_bp
 from .resources import (
     ReceiptListResource,
     ReceiptResource,
@@ -30,8 +31,11 @@ from .resources import (
 
 
 def create_app(config_class=Config):
+    # 创建配置实例并从设定文件加载
+    config_instance = config_class.create_instance()
+
     app = Flask(__name__)
-    app.config.from_object(config_class)
+    app.config.from_object(config_instance)
 
     # 确保上传目录存在
     if not os.path.exists(app.config["UPLOAD_FOLDER"]):
@@ -46,6 +50,7 @@ def create_app(config_class=Config):
     app.register_blueprint(frontend_bp)
     app.register_blueprint(category_bp)
     app.register_blueprint(category_frontend_bp)
+    app.register_blueprint(settings_bp)
 
     # 添加 CLI 命令
     @app.cli.command("init-db")
