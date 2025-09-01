@@ -987,17 +987,49 @@ function convertTimestampsToLocal() {
 
 // 格式化日期为本地时区
 function formatDateToLocal(date, format = "short") {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
+  // 从localStorage获取用户设置的时区，或使用浏览器默认时区
+  const userTimezone = localStorage.getItem('userTimezone') || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
+  try {
+    const options = {
+      timeZone: userTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    };
+    
+    const formatter = new Intl.DateTimeFormat('zh-CN', options);
+    const parts = formatter.formatToParts(date);
+    
+    const year = parts.find(part => part.type === 'year').value;
+    const month = parts.find(part => part.type === 'month').value;
+    const day = parts.find(part => part.type === 'day').value;
+    const hours = parts.find(part => part.type === 'hour').value;
+    const minutes = parts.find(part => part.type === 'minute').value;
+    
+    // 根据原始格式决定输出格式
+    if (format === "full") {
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    } else {
+      return `${month}-${day} ${hours}:${minutes}`;
+    }
+  } catch (error) {
+    console.warn('时区转换失败，使用本地时间:', error);
+    // 降级到原来的逻辑
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
 
-  // 根据原始格式决定输出格式
-  if (format === "full") {
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
-  } else {
-    return `${month}-${day} ${hours}:${minutes}`;
+    if (format === "full") {
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    } else {
+      return `${month}-${day} ${hours}:${minutes}`;
+    }
   }
 }
 

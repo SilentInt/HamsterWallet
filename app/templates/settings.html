@@ -241,6 +241,67 @@
     </div>
 
     <div class="row">
+        <!-- 时区设定 -->
+        <div class="col-lg-6 col-md-12">
+            <div class="card setting-card">
+                <div class="setting-header">
+                    <h5><i class="fas fa-clock"></i> 时区设定</h5>
+                </div>
+                <div class="card-body">
+                    <form id="timezoneSettingsForm">
+                        <div class="mb-3">
+                            <label for="userTimezone" class="form-label">用户时区</label>
+                            <select class="form-select" id="userTimezone" name="userTimezone">
+                                <optgroup label="亚洲">
+                                    <option value="Asia/Shanghai">中国标准时间 (UTC+8) - 上海</option>
+                                    <option value="Asia/Hong_Kong">香港时间 (UTC+8) - 香港</option>
+                                    <option value="Asia/Taipei">台北时间 (UTC+8) - 台北</option>
+                                    <option value="Asia/Tokyo">日本标准时间 (UTC+9) - 东京</option>
+                                    <option value="Asia/Seoul">韩国标准时间 (UTC+9) - 首尔</option>
+                                    <option value="Asia/Singapore">新加坡时间 (UTC+8) - 新加坡</option>
+                                    <option value="Asia/Bangkok">泰国时间 (UTC+7) - 曼谷</option>
+                                    <option value="Asia/Kuala_Lumpur">马来西亚时间 (UTC+8) - 吉隆坡</option>
+                                </optgroup>
+                                <optgroup label="欧洲">
+                                    <option value="Europe/London">英国时间 (UTC+0/+1) - 伦敦</option>
+                                    <option value="Europe/Paris">中欧时间 (UTC+1/+2) - 巴黎</option>
+                                    <option value="Europe/Berlin">中欧时间 (UTC+1/+2) - 柏林</option>
+                                    <option value="Europe/Rome">中欧时间 (UTC+1/+2) - 罗马</option>
+                                    <option value="Europe/Moscow">莫斯科时间 (UTC+3) - 莫斯科</option>
+                                </optgroup>
+                                <optgroup label="美洲">
+                                    <option value="America/New_York">美国东部时间 (UTC-5/-4) - 纽约</option>
+                                    <option value="America/Chicago">美国中部时间 (UTC-6/-5) - 芝加哥</option>
+                                    <option value="America/Denver">美国山地时间 (UTC-7/-6) - 丹佛</option>
+                                    <option value="America/Los_Angeles">美国太平洋时间 (UTC-8/-7) - 洛杉矶</option>
+                                    <option value="America/Toronto">加拿大东部时间 (UTC-5/-4) - 多伦多</option>
+                                </optgroup>
+                                <optgroup label="大洋洲">
+                                    <option value="Australia/Sydney">澳大利亚东部时间 (UTC+10/+11) - 悉尼</option>
+                                    <option value="Australia/Melbourne">澳大利亚东部时间 (UTC+10/+11) - 墨尔本</option>
+                                    <option value="Pacific/Auckland">新西兰时间 (UTC+12/+13) - 奥克兰</option>
+                                </optgroup>
+                                <optgroup label="其他">
+                                    <option value="UTC">协调世界时 (UTC+0)</option>
+                                </optgroup>
+                            </select>
+                            <div class="form-text">
+                                选择您所在的时区，系统将根据此设置显示和处理所有时间信息。
+                                <br><small class="text-muted">当前本地时间：<span id="currentLocalTime">--</span></small>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save"></i> 保存时区设定
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    <div class="row">
         <!-- 数据备份 -->
         <div class="col-lg-6 col-md-12">
             <div class="card setting-card">
@@ -449,6 +510,21 @@
             savePromptSettings();
         });
 
+        // 时区设定表单提交
+        $('#timezoneSettingsForm').submit(function (e) {
+            e.preventDefault();
+            saveTimezoneSettings();
+        });
+
+        // 更新当前本地时间显示
+        updateCurrentLocalTime();
+        setInterval(updateCurrentLocalTime, 1000); // 每秒更新一次
+
+        // 时区选择变化时更新时间显示
+        $('#userTimezone').change(function() {
+            updateCurrentLocalTime();
+        });
+
         // 备份按钮点击
         $('#startBackup').click(function () {
             showConfirm('确定要开始备份吗？备份过程可能需要几分钟时间。', function () {
@@ -506,7 +582,7 @@
                         restoreFileInput.files = fileList.files;
                         handleRestoreFilePreview(file);
                     } else {
-                        showAlert('请选择ZIP格式的备份文件', 'warning');
+                        showToast('请选择ZIP格式的备份文件', 'warning');
                     }
                 }
             });
@@ -588,9 +664,15 @@
                 // Prompt设定
                 $('#receiptPrompt').val(settings.receipt_prompt || '');
                 $('#categoryPrompt').val(settings.category_prompt || '');
+                
+                // 时区设定
+                $('#userTimezone').val(settings.user_timezone || 'Asia/Shanghai');
+                // 同时保存到localStorage供前端使用
+                localStorage.setItem('userTimezone', settings.user_timezone || 'Asia/Shanghai');
+                updateCurrentLocalTime();
             }
         }).fail(function () {
-            showAlert('加载设定失败', 'danger');
+            showToast('加载设定失败', 'error');
         });
     }
 
@@ -623,13 +705,13 @@
             data: JSON.stringify(formData),
             success: function (data) {
                 if (data.success) {
-                    showAlert('AI设定保存成功！', 'success');
+                    showToast('AI设定保存成功！', 'success');
                 } else {
-                    showAlert('保存失败：' + data.message, 'danger');
+                    showToast('保存失败：' + data.message, 'error');
                 }
             },
             error: function () {
-                showAlert('保存AI设定失败', 'danger');
+                showToast('保存AI设定失败', 'error');
             }
         });
     }
@@ -648,13 +730,13 @@
             data: JSON.stringify(formData),
             success: function (data) {
                 if (data.success) {
-                    showAlert('Prompt设定保存成功！', 'success');
+                    showToast('Prompt设定保存成功！', 'success');
                 } else {
-                    showAlert('保存失败：' + data.message, 'danger');
+                    showToast('保存失败：' + data.message, 'error');
                 }
             },
             error: function () {
-                showAlert('保存Prompt设定失败', 'danger');
+                showToast('保存Prompt设定失败', 'error');
             }
         });
     }
@@ -701,16 +783,16 @@
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
                 
-                showAlert('备份完成！', 'success');
+                showToast('备份完成！', 'success');
             } else {
                 // 错误，尝试解析错误消息
                 const reader = new FileReader();
                 reader.onload = function() {
                     try {
                         const errorData = JSON.parse(reader.result);
-                        showAlert('备份失败：' + errorData.message, 'danger');
+                        showToast('备份失败：' + errorData.message, 'error');
                     } catch (e) {
-                        showAlert('备份过程中发生错误', 'danger');
+                        showToast('备份过程中发生错误', 'error');
                     }
                 };
                 reader.readAsText(xhr.response);
@@ -719,7 +801,7 @@
 
         xhr.onerror = function() {
             clearInterval(progressInterval);
-            showAlert('备份过程中发生网络错误', 'danger');
+            showToast('备份过程中发生网络错误', 'error');
         };
 
         xhr.onloadend = function() {
@@ -737,7 +819,7 @@
     function startRestore() {
         const fileInput = $('#restoreFileInput')[0];
         if (!fileInput.files[0]) {
-            showAlert('请先选择备份文件', 'warning');
+            showToast('请先选择备份文件', 'warning');
             return;
         }
 
@@ -766,17 +848,17 @@
                 $('#restoreProgress .progress-bar').css('width', '100%');
 
                 if (data.success) {
-                    showAlert('恢复完成！页面将在3秒后刷新。', 'success');
+                    showToast('恢复完成！页面将在3秒后刷新。', 'success');
                     setTimeout(function () {
                         window.location.reload();
                     }, 3000);
                 } else {
-                    showAlert('恢复失败：' + data.message, 'danger');
+                    showToast('恢复失败：' + data.message, 'error');
                 }
             },
             error: function () {
                 clearInterval(progressInterval);
-                showAlert('恢复过程中发生错误', 'danger');
+                showToast('恢复过程中发生错误', 'error');
             },
             complete: function () {
                 $('#startRestore').prop('disabled', false).html('<i class="fas fa-upload"></i> 开始恢复');
@@ -807,12 +889,12 @@
         $.get('/api/settings/default-prompt', function (data) {
             if (data.success) {
                 $('#receiptPrompt').val(data.prompt);
-                showAlert('已恢复为默认Prompt', 'info');
+                showToast('已恢复为默认Prompt', 'info');
             } else {
-                showAlert('获取默认Prompt失败', 'danger');
+                showToast('获取默认Prompt失败', 'error');
             }
         }).fail(function () {
-            showAlert('获取默认Prompt失败', 'danger');
+            showToast('获取默认Prompt失败', 'error');
         });
     }
 
@@ -827,21 +909,67 @@
         });
     }
 
-    // 显示提示消息
-    function showAlert(message, type) {
-        const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
+    // 显示提示消息 - 已改为使用全局的showToast函数，保持与其他页面一致
+    // 不再需要这个函数，直接使用main.js中的showToast
 
-        $('.container-fluid').prepend(alertHtml);
+    // 保存时区设定
+    function saveTimezoneSettings() {
+        const formData = {
+            user_timezone: $('#userTimezone').val()
+        };
 
-        // 3秒后自动隐藏
-        setTimeout(function () {
-            $('.alert').first().alert('close');
-        }, 3000);
+        $.ajax({
+            url: '/api/settings/timezone',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function (data) {
+                if (data.success) {
+                    // 保存到localStorage供前端使用
+                    localStorage.setItem('userTimezone', formData.user_timezone);
+                    showToast('时区设定保存成功！', 'success');
+                    updateCurrentLocalTime();
+                    // 重新转换页面上所有的时间戳
+                    if (typeof convertTimestampsToLocal === 'function') {
+                        convertTimestampsToLocal();
+                    }
+                } else {
+                    showToast('保存失败：' + data.message, 'error');
+                }
+            },
+            error: function () {
+                showToast('保存时区设定失败', 'error');
+            }
+        });
+    }
+
+    // 更新当前本地时间显示
+    function updateCurrentLocalTime() {
+        const timezone = $('#userTimezone').val() || 'Asia/Shanghai';
+        try {
+            const now = new Date();
+            const options = {
+                timeZone: timezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            const localTime = now.toLocaleString('zh-CN', options);
+            $('#currentLocalTime').text(localTime);
+        } catch (e) {
+            $('#currentLocalTime').text('时区格式错误');
+        }
+    }
+
+    // 转换页面上所有的时间戳（在设置页面中，这个函数主要是为了兼容性）
+    function convertTimestamps() {
+        // 在设置页面中，我们主要是显示时区设置，没有太多时间戳需要转换
+        // 这个函数在其他页面会更有用
+        console.log('时区设置已更新，时间戳转换功能在其他页面生效');
     }
 </script>
 {% endblock %}

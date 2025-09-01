@@ -31,6 +31,8 @@ class ConfigManager:
             "image_compression_quality": 80,
             "image_max_width": 1920,
             "image_max_height": 1080,
+            # 时区设定
+            "user_timezone": "Asia/Shanghai",
         }
 
     @classmethod

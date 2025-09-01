@@ -159,6 +159,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <!-- 全局主脚本 -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <!-- 初始化用户时区设置 -->
+    <script>
+      $(document).ready(function() {
+        // 在页面加载时获取用户时区设置
+        if (!localStorage.getItem('userTimezone')) {
+          $.get('/api/settings', function(data) {
+            if (data.success && data.data.user_timezone) {
+              localStorage.setItem('userTimezone', data.data.user_timezone);
+              // 转换页面上的时间戳
+              if (typeof convertTimestamps === 'function') {
+                convertTimestamps();
+              }
+            }
+          }).fail(function() {
+            // 如果获取失败，使用默认时区
+            localStorage.setItem('userTimezone', 'Asia/Shanghai');
+          });
+        } else {
+          // 如果已有时区设置，转换页面上的时间戳
+          if (typeof convertTimestamps === 'function') {
+            convertTimestamps();
+          }
+        }
+      });
+    </script>
 
     {% block extra_js %}{% endblock %}
   </body>

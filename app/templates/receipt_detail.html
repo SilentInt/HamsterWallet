@@ -687,6 +687,11 @@
 <script>
 // 页面初始化
 $(document).ready(function() {
+    // 转换页面上的所有时间戳为用户本地时区
+    if (typeof convertTimestampsToLocal === 'function') {
+        convertTimestampsToLocal();
+    }
+    
     // 为商品卡片添加进入动画
     $('.item-compact').each(function(index) {
         $(this).css({

@@ -66,6 +66,30 @@ class SettingsService:
             return False, f"保存Prompt设定失败: {str(e)}"
 
     @staticmethod
+    def save_timezone_settings(settings):
+        """保存时区设定"""
+        try:
+            from config import ConfigManager
+            import pytz
+
+            # 验证时区是否有效
+            timezone = settings.get("user_timezone", "Asia/Shanghai")
+            try:
+                pytz.timezone(timezone)
+            except pytz.exceptions.UnknownTimeZoneError:
+                return False, f"无效的时区: {timezone}"
+
+            # 只保存时区相关设定
+            timezone_settings = {
+                "user_timezone": timezone,
+            }
+
+            return ConfigManager.save_settings(timezone_settings)
+
+        except Exception as e:
+            return False, f"保存时区设定失败: {str(e)}"
+
+    @staticmethod
     def get_default_prompt():
         """获取默认Prompt"""
         from config import ConfigManager

@@ -3,6 +3,21 @@ from .database import ma
 from .models import Receipt, Item, DurableGood
 from .category_models import Category
 from marshmallow import fields, Schema
+from .services import convert_utc_to_local
+
+
+class UserTimezoneDateTime(fields.DateTime):
+    """自定义DateTime字段，自动转换为用户时区"""
+    
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is None:
+            return None
+        
+        # 将UTC时间转换为用户本地时间
+        local_time = convert_utc_to_local(value)
+        
+        # 使用父类的序列化方法
+        return super()._serialize(local_time, attr, obj, **kwargs)
 
 
 class CategorySchema(ma.SQLAlchemyAutoSchema):
@@ -28,6 +43,8 @@ class ItemSchema(ma.SQLAlchemyAutoSchema):
     category = fields.Nested(CategorySchema, allow_none=True)
     category_path = fields.Method("get_category_path")
     durable_info = fields.Nested(DurableGoodSchema, allow_none=True)
+    created_at = UserTimezoneDateTime()
+    updated_at = UserTimezoneDateTime()
 
     class Meta:
         model = Item
@@ -44,6 +61,9 @@ class ItemSchema(ma.SQLAlchemyAutoSchema):
 class ReceiptSchema(ma.SQLAlchemyAutoSchema):
     status = fields.Method("get_status_str")
     items = fields.Nested(ItemSchema, many=True)
+    transaction_time = UserTimezoneDateTime()
+    created_at = UserTimezoneDateTime()
+    updated_at = UserTimezoneDateTime()
 
     class Meta:
         model = Receipt
@@ -63,8 +83,8 @@ class ExportRecordSchema(Schema):
     receipt_name = fields.String()
     store_name = fields.String()
     store_category = fields.String()
-    transaction_time = fields.DateTime()
-    receipt_created_at = fields.DateTime()
+    transaction_time = UserTimezoneDateTime()
+    receipt_created_at = UserTimezoneDateTime()
     receipt_status = fields.String()
     receipt_notes = fields.String()
 

@@ -15,13 +15,13 @@ from .file_service import FileService
 DEFAULT_USER_TIMEZONE = timezone(timedelta(hours=9))
 
 
-def convert_local_to_utc(local_datetime, user_timezone=DEFAULT_USER_TIMEZONE):
+def convert_local_to_utc(local_datetime, user_timezone=None):
     """
     将用户本地时间转换为UTC时间
 
     Args:
         local_datetime: 用户本地时间（naive datetime）
-        user_timezone: 用户时区，默认为东九区
+        user_timezone: 用户时区字符串（如 'Asia/Shanghai'），如果为None则从配置中获取
 
     Returns:
         UTC时间（naive datetime）
@@ -29,17 +29,101 @@ def convert_local_to_utc(local_datetime, user_timezone=DEFAULT_USER_TIMEZONE):
     if local_datetime is None:
         return None
 
-    # 如果已经有时区信息，先转换为UTC
-    if local_datetime.tzinfo is not None:
-        return local_datetime.astimezone(timezone.utc).replace(tzinfo=None)
+    try:
+        import pytz
+        from config import ConfigManager
+        
+        # 获取用户设置的时区
+        if user_timezone is None:
+            settings = ConfigManager.load_settings()
+            user_timezone_str = settings.get('user_timezone', 'Asia/Shanghai')
+        elif isinstance(user_timezone, str):
+            user_timezone_str = user_timezone
+        else:
+            # 兼容旧的timezone对象
+            user_timezone_str = 'Asia/Shanghai'
+        
+        local_tz = pytz.timezone(user_timezone_str)
+        
+        # 如果已经有时区信息，先转换为UTC
+        if local_datetime.tzinfo is not None:
+            return local_datetime.astimezone(pytz.UTC).replace(tzinfo=None)
 
-    # 将本地时间标记为用户时区
-    local_tz_time = local_datetime.replace(tzinfo=user_timezone)
+        # 将本地时间标记为用户时区
+        local_tz_time = local_tz.localize(local_datetime)
 
-    # 转换为UTC时间（移除时区信息）
-    utc_time = local_tz_time.astimezone(timezone.utc).replace(tzinfo=None)
+        # 转换为UTC时间（移除时区信息）
+        utc_time = local_tz_time.astimezone(pytz.UTC).replace(tzinfo=None)
+        
+        return utc_time
+    except Exception as e:
+        print(f"时区转换错误: {e}")
+        # 如果转换失败，尝试使用旧方法
+        if local_datetime.tzinfo is not None:
+            return local_datetime.astimezone(timezone.utc).replace(tzinfo=None)
+        
+        # 假设是东九区时间
+        local_tz_time = local_datetime.replace(tzinfo=timezone(timedelta(hours=9)))
+        return local_tz_time.astimezone(timezone.utc).replace(tzinfo=None)
 
-    return utc_time
+
+def convert_utc_to_local(utc_datetime, user_timezone=None):
+    """
+    将UTC时间转换为用户本地时间
+
+    Args:
+        utc_datetime: UTC时间（naive datetime）
+        user_timezone: 用户时区字符串（如 'Asia/Shanghai'），如果为None则从配置中获取
+
+    Returns:
+        用户本地时间（naive datetime）
+    """
+    if utc_datetime is None:
+        return None
+
+    try:
+        import pytz
+        from config import ConfigManager
+        
+        # 获取用户设置的时区
+        if user_timezone is None:
+            settings = ConfigManager.load_settings()
+            user_timezone_str = settings.get('user_timezone', 'Asia/Shanghai')
+        else:
+            user_timezone_str = user_timezone
+        
+        local_tz = pytz.timezone(user_timezone_str)
+        
+        # 如果已经有时区信息，直接转换
+        if utc_datetime.tzinfo is not None:
+            return utc_datetime.astimezone(local_tz).replace(tzinfo=None)
+
+        # 将UTC时间标记为UTC时区
+        utc_tz_time = pytz.UTC.localize(utc_datetime)
+
+        # 转换为本地时间（移除时区信息）
+        local_time = utc_tz_time.astimezone(local_tz).replace(tzinfo=None)
+        
+        return local_time
+    except Exception as e:
+        print(f"时区转换错误: {e}")
+        # 如果转换失败，使用旧方法
+        if utc_datetime.tzinfo is not None:
+            return utc_datetime.astimezone(timezone(timedelta(hours=9))).replace(tzinfo=None)
+        
+        # 假设是UTC时间，转换为东九区
+        utc_tz_time = utc_datetime.replace(tzinfo=timezone.utc)
+        return utc_tz_time.astimezone(timezone(timedelta(hours=9))).replace(tzinfo=None)
+
+
+def get_user_timezone():
+    """获取用户设置的时区"""
+    try:
+        from config import ConfigManager
+        settings = ConfigManager.load_settings()
+        return settings.get('user_timezone', 'Asia/Shanghai')
+    except Exception:
+        return 'Asia/Shanghai'
 
 
 class ReceiptService:
@@ -591,11 +675,13 @@ class ExportService:
             Item, Receipt.id == Item.receipt_id
         )
 
-        # 时间范围筛选
+        # 时间范围筛选 - 需要将用户本地时间转换为UTC时间进行比较
         if start_date := args.get("start_date"):
             try:
                 start_datetime = datetime.fromisoformat(start_date)
-                query = query.filter(Receipt.transaction_time >= start_datetime)
+                # 将用户本地时间转换为UTC时间
+                start_datetime_utc = convert_local_to_utc(start_datetime)
+                query = query.filter(Receipt.transaction_time >= start_datetime_utc)
             except ValueError:
                 pass
 
@@ -608,7 +694,9 @@ class ExportService:
                     end_datetime = end_datetime.replace(
                         hour=23, minute=59, second=59, microsecond=999999
                     )
-                query = query.filter(Receipt.transaction_time <= end_datetime)
+                # 将用户本地时间转换为UTC时间
+                end_datetime_utc = convert_local_to_utc(end_datetime)
+                query = query.filter(Receipt.transaction_time <= end_datetime_utc)
             except ValueError:
                 pass
 
@@ -796,11 +884,13 @@ class AnalyticsService:
         if start_date and isinstance(start_date, str):
             try:
                 start_datetime = datetime.fromisoformat(start_date)
+                # 将用户本地时间转换为UTC时间
+                start_datetime_utc = convert_local_to_utc(start_datetime)
                 receipt_query = receipt_query.filter(
-                    Receipt.transaction_time >= start_datetime
+                    Receipt.transaction_time >= start_datetime_utc
                 )
                 item_query = item_query.filter(
-                    Receipt.transaction_time >= start_datetime
+                    Receipt.transaction_time >= start_datetime_utc
                 )
             except (ValueError, TypeError):
                 pass
@@ -814,10 +904,12 @@ class AnalyticsService:
                     end_datetime = end_datetime.replace(
                         hour=23, minute=59, second=59, microsecond=999999
                     )
+                # 将用户本地时间转换为UTC时间
+                end_datetime_utc = convert_local_to_utc(end_datetime)
                 receipt_query = receipt_query.filter(
-                    Receipt.transaction_time <= end_datetime
+                    Receipt.transaction_time <= end_datetime_utc
                 )
-                item_query = item_query.filter(Receipt.transaction_time <= end_datetime)
+                item_query = item_query.filter(Receipt.transaction_time <= end_datetime_utc)
             except (ValueError, TypeError):
                 pass
 
@@ -833,8 +925,10 @@ class AnalyticsService:
             if start_date and isinstance(start_date, str):
                 try:
                     start_datetime = datetime.fromisoformat(start_date)
+                    # 将用户本地时间转换为UTC时间
+                    start_datetime_utc = convert_local_to_utc(start_datetime)
                     items_query = items_query.filter(
-                        Receipt.transaction_time >= start_datetime
+                        Receipt.transaction_time >= start_datetime_utc
                     )
                 except (ValueError, TypeError):
                     pass
@@ -848,8 +942,10 @@ class AnalyticsService:
                         end_datetime = end_datetime.replace(
                             hour=23, minute=59, second=59, microsecond=999999
                         )
+                    # 将用户本地时间转换为UTC时间
+                    end_datetime_utc = convert_local_to_utc(end_datetime)
                     items_query = items_query.filter(
-                        Receipt.transaction_time <= end_datetime
+                        Receipt.transaction_time <= end_datetime_utc
                     )
                 except (ValueError, TypeError):
                     pass
@@ -878,11 +974,13 @@ class AnalyticsService:
             if start_date and isinstance(start_date, str):
                 try:
                     start_datetime = datetime.fromisoformat(start_date)
+                    # 将用户本地时间转换为UTC时间
+                    start_datetime_utc = convert_local_to_utc(start_datetime)
                     total_spending_jpy = total_spending_jpy.filter(
-                        Receipt.transaction_time >= start_datetime
+                        Receipt.transaction_time >= start_datetime_utc
                     )
                     total_spending_cny = total_spending_cny.filter(
-                        Receipt.transaction_time >= start_datetime
+                        Receipt.transaction_time >= start_datetime_utc
                     )
                 except (ValueError, TypeError):
                     pass
@@ -896,11 +994,13 @@ class AnalyticsService:
                         end_datetime = end_datetime.replace(
                             hour=23, minute=59, second=59, microsecond=999999
                         )
+                    # 将用户本地时间转换为UTC时间
+                    end_datetime_utc = convert_local_to_utc(end_datetime)
                     total_spending_jpy = total_spending_jpy.filter(
-                        Receipt.transaction_time <= end_datetime
+                        Receipt.transaction_time <= end_datetime_utc
                     )
                     total_spending_cny = total_spending_cny.filter(
-                        Receipt.transaction_time <= end_datetime
+                        Receipt.transaction_time <= end_datetime_utc
                     )
                 except (ValueError, TypeError):
                     pass
@@ -926,8 +1026,10 @@ class AnalyticsService:
             if start_date and isinstance(start_date, str):
                 try:
                     start_datetime = datetime.fromisoformat(start_date)
+                    # 将用户本地时间转换为UTC时间
+                    start_datetime_utc = convert_local_to_utc(start_datetime)
                     date_range = date_range.filter(
-                        Receipt.transaction_time >= start_datetime
+                        Receipt.transaction_time >= start_datetime_utc
                     )
                 except (ValueError, TypeError):
                     pass
@@ -941,8 +1043,10 @@ class AnalyticsService:
                         end_datetime = end_datetime.replace(
                             hour=23, minute=59, second=59, microsecond=999999
                         )
+                    # 将用户本地时间转换为UTC时间
+                    end_datetime_utc = convert_local_to_utc(end_datetime)
                     date_range = date_range.filter(
-                        Receipt.transaction_time <= end_datetime
+                        Receipt.transaction_time <= end_datetime_utc
                     )
                 except (ValueError, TypeError):
                     pass
@@ -1025,7 +1129,9 @@ class AnalyticsService:
         if start_date and isinstance(start_date, str):
             try:
                 start_datetime = datetime.fromisoformat(start_date)
-                query = query.filter(Receipt.transaction_time >= start_datetime)
+                # 将用户本地时间转换为UTC时间
+                start_datetime_utc = convert_local_to_utc(start_datetime)
+                query = query.filter(Receipt.transaction_time >= start_datetime_utc)
             except (ValueError, TypeError):
                 pass
 
@@ -1038,7 +1144,9 @@ class AnalyticsService:
                     end_datetime = end_datetime.replace(
                         hour=23, minute=59, second=59, microsecond=999999
                     )
-                query = query.filter(Receipt.transaction_time <= end_datetime)
+                # 将用户本地时间转换为UTC时间
+                end_datetime_utc = convert_local_to_utc(end_datetime)
+                query = query.filter(Receipt.transaction_time <= end_datetime_utc)
             except (ValueError, TypeError):
                 pass
 
@@ -1192,6 +1300,10 @@ class AnalyticsService:
             # 1. 获取当日购买的所有商品（包括耐用品和常规商品）
             start_datetime = datetime.combine(target_date, datetime.min.time())
             end_datetime = datetime.combine(target_date, datetime.max.time())
+            
+            # 将用户本地时间转换为UTC时间
+            start_datetime_utc = convert_local_to_utc(start_datetime)
+            end_datetime_utc = convert_local_to_utc(end_datetime)
 
             daily_query = (
                 db.session.query(Item)
@@ -1199,8 +1311,8 @@ class AnalyticsService:
                 .filter(
                     Receipt.status == RecognitionStatus.SUCCESS,
                     Receipt.transaction_time.is_not(None),
-                    Receipt.transaction_time >= start_datetime,
-                    Receipt.transaction_time <= end_datetime,
+                    Receipt.transaction_time >= start_datetime_utc,
+                    Receipt.transaction_time <= end_datetime_utc,
                 )
             )
 
@@ -1257,6 +1369,10 @@ class AnalyticsService:
             # 常规模式下，只查询当日购买的商品
             start_datetime = datetime.combine(target_date, datetime.min.time())
             end_datetime = datetime.combine(target_date, datetime.max.time())
+            
+            # 将用户本地时间转换为UTC时间
+            start_datetime_utc = convert_local_to_utc(start_datetime)
+            end_datetime_utc = convert_local_to_utc(end_datetime)
 
             query = (
                 db.session.query(Item)
@@ -1264,8 +1380,8 @@ class AnalyticsService:
                 .filter(
                     Receipt.status == RecognitionStatus.SUCCESS,
                     Receipt.transaction_time.is_not(None),
-                    Receipt.transaction_time >= start_datetime,
-                    Receipt.transaction_time <= end_datetime,
+                    Receipt.transaction_time >= start_datetime_utc,
+                    Receipt.transaction_time <= end_datetime_utc,
                 )
             )
 
@@ -1398,7 +1514,9 @@ class AnalyticsService:
         if start_date and isinstance(start_date, str):
             try:
                 start_datetime = datetime.fromisoformat(start_date)
-                query = query.filter(Receipt.transaction_time >= start_datetime)
+                # 将用户本地时间转换为UTC时间
+                start_datetime_utc = convert_local_to_utc(start_datetime)
+                query = query.filter(Receipt.transaction_time >= start_datetime_utc)
             except (ValueError, TypeError):
                 pass
 
@@ -1411,7 +1529,9 @@ class AnalyticsService:
                     end_datetime = end_datetime.replace(
                         hour=23, minute=59, second=59, microsecond=999999
                     )
-                query = query.filter(Receipt.transaction_time <= end_datetime)
+                # 将用户本地时间转换为UTC时间
+                end_datetime_utc = convert_local_to_utc(end_datetime)
+                query = query.filter(Receipt.transaction_time <= end_datetime_utc)
             except (ValueError, TypeError):
                 pass
 
@@ -1584,7 +1704,9 @@ class AnalyticsService:
         if start_date and isinstance(start_date, str):
             try:
                 start_datetime = datetime.fromisoformat(start_date)
-                query = query.filter(Receipt.transaction_time >= start_datetime)
+                # 将用户本地时间转换为UTC时间
+                start_datetime_utc = convert_local_to_utc(start_datetime)
+                query = query.filter(Receipt.transaction_time >= start_datetime_utc)
             except (ValueError, TypeError):
                 pass
 
@@ -1597,7 +1719,9 @@ class AnalyticsService:
                     end_datetime = end_datetime.replace(
                         hour=23, minute=59, second=59, microsecond=999999
                     )
-                query = query.filter(Receipt.transaction_time <= end_datetime)
+                # 将用户本地时间转换为UTC时间
+                end_datetime_utc = convert_local_to_utc(end_datetime)
+                query = query.filter(Receipt.transaction_time <= end_datetime_utc)
             except (ValueError, TypeError):
                 pass
 
@@ -1851,7 +1975,9 @@ class DataMiningService:
         if start_date and isinstance(start_date, str):
             try:
                 start_datetime = datetime.fromisoformat(start_date)
-                query = query.filter(Receipt.transaction_time >= start_datetime)
+                # 将用户本地时间转换为UTC时间
+                start_datetime_utc = convert_local_to_utc(start_datetime)
+                query = query.filter(Receipt.transaction_time >= start_datetime_utc)
             except (ValueError, TypeError):
                 pass
 
@@ -1864,7 +1990,9 @@ class DataMiningService:
                     end_datetime = end_datetime.replace(
                         hour=23, minute=59, second=59, microsecond=999999
                     )
-                query = query.filter(Receipt.transaction_time <= end_datetime)
+                # 将用户本地时间转换为UTC时间
+                end_datetime_utc = convert_local_to_utc(end_datetime)
+                query = query.filter(Receipt.transaction_time <= end_datetime_utc)
             except (ValueError, TypeError):
                 pass
 
@@ -1996,7 +2124,9 @@ class DataMiningService:
             if start_date and isinstance(start_date, str):
                 try:
                     start_datetime = datetime.fromisoformat(start_date)
-                    query = query.filter(Receipt.transaction_time >= start_datetime)
+                    # 将用户本地时间转换为UTC时间
+                    start_datetime_utc = convert_local_to_utc(start_datetime)
+                    query = query.filter(Receipt.transaction_time >= start_datetime_utc)
                 except (ValueError, TypeError):
                     pass
 
@@ -2009,7 +2139,9 @@ class DataMiningService:
                         end_datetime = end_datetime.replace(
                             hour=23, minute=59, second=59, microsecond=999999
                         )
-                    query = query.filter(Receipt.transaction_time <= end_datetime)
+                    # 将用户本地时间转换为UTC时间
+                    end_datetime_utc = convert_local_to_utc(end_datetime)
+                    query = query.filter(Receipt.transaction_time <= end_datetime_utc)
                 except (ValueError, TypeError):
                     pass
 

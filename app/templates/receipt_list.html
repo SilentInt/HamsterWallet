@@ -687,6 +687,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化无限滚动
     initializeInfiniteScroll();
     
+    // 转换页面上的所有时间戳为用户本地时区
+    if (typeof convertTimestampsToLocal === 'function') {
+        convertTimestampsToLocal();
+    }
+    
     // 图片上传交互优化
     const imageInput = document.getElementById('imageInput');
     const singleDropArea = document.getElementById('singleDropArea');

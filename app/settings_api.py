@@ -41,6 +41,18 @@ def save_prompt_settings():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+@settings_bp.route("/settings/timezone", methods=["POST"])
+def save_timezone_settings():
+    """保存时区设定"""
+    try:
+        data = request.get_json()
+        success, message = SettingsService.save_timezone_settings(data)
+
+        return jsonify({"success": success, "message": message})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @settings_bp.route("/system-info", methods=["GET"])
 def get_system_info():
     """获取系统信息"""
