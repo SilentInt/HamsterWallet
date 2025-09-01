@@ -605,7 +605,9 @@ class ExportService:
                 # 包含完整的最后一天：将结束日期设为次日开始时间，然后使用小于比较
                 if end_datetime.time() == datetime.min.time():
                     # 如果只有日期没有时间，则包含整天
-                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    end_datetime = end_datetime.replace(
+                        hour=23, minute=59, second=59, microsecond=999999
+                    )
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except ValueError:
                 pass
@@ -809,7 +811,9 @@ class AnalyticsService:
                 # 包含完整的最后一天：将结束日期设为当天的最后时刻
                 if end_datetime.time() == datetime.min.time():
                     # 如果只有日期没有时间，则包含整天
-                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    end_datetime = end_datetime.replace(
+                        hour=23, minute=59, second=59, microsecond=999999
+                    )
                 receipt_query = receipt_query.filter(
                     Receipt.transaction_time <= end_datetime
                 )
@@ -825,31 +829,39 @@ class AnalyticsService:
                 .join(Receipt)
                 .filter(Receipt.status == RecognitionStatus.SUCCESS)
             )
-            
+
             if start_date and isinstance(start_date, str):
                 try:
                     start_datetime = datetime.fromisoformat(start_date)
-                    items_query = items_query.filter(Receipt.transaction_time >= start_datetime)
+                    items_query = items_query.filter(
+                        Receipt.transaction_time >= start_datetime
+                    )
                 except (ValueError, TypeError):
                     pass
-                    
+
             if end_date and isinstance(end_date, str):
                 try:
                     end_datetime = datetime.fromisoformat(end_date)
                     # 包含完整的最后一天：将结束日期设为当天的最后时刻
                     if end_datetime.time() == datetime.min.time():
                         # 如果只有日期没有时间，则包含整天
-                        end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
-                    items_query = items_query.filter(Receipt.transaction_time <= end_datetime)
+                        end_datetime = end_datetime.replace(
+                            hour=23, minute=59, second=59, microsecond=999999
+                        )
+                    items_query = items_query.filter(
+                        Receipt.transaction_time <= end_datetime
+                    )
                 except (ValueError, TypeError):
                     pass
-                    
+
             items = items_query.all()
-            amortized_spending = AnalyticsService._get_amortized_spending_for_date_range(
-                items, start_date, end_date, use_amortization
+            amortized_spending = (
+                AnalyticsService._get_amortized_spending_for_date_range(
+                    items, start_date, end_date, use_amortization
+                )
             )
-            total_jpy = amortized_spending['jpy']
-            total_cny = amortized_spending['cny']
+            total_jpy = amortized_spending["jpy"]
+            total_cny = amortized_spending["cny"]
         else:
             # 传统模式，直接查询价格总和
             total_spending_jpy = (
@@ -881,7 +893,9 @@ class AnalyticsService:
                     # 包含完整的最后一天：将结束日期设为当天的最后时刻
                     if end_datetime.time() == datetime.min.time():
                         # 如果只有日期没有时间，则包含整天
-                        end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+                        end_datetime = end_datetime.replace(
+                            hour=23, minute=59, second=59, microsecond=999999
+                        )
                     total_spending_jpy = total_spending_jpy.filter(
                         Receipt.transaction_time <= end_datetime
                     )
@@ -924,7 +938,9 @@ class AnalyticsService:
                     # 包含完整的最后一天：将结束日期设为当天的最后时刻
                     if end_datetime.time() == datetime.min.time():
                         # 如果只有日期没有时间，则包含整天
-                        end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+                        end_datetime = end_datetime.replace(
+                            hour=23, minute=59, second=59, microsecond=999999
+                        )
                     date_range = date_range.filter(
                         Receipt.transaction_time <= end_datetime
                     )
@@ -1019,7 +1035,9 @@ class AnalyticsService:
                 # 包含完整的最后一天：将结束日期设为当天的最后时刻
                 if end_datetime.time() == datetime.min.time():
                     # 如果只有日期没有时间，则包含整天
-                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    end_datetime = end_datetime.replace(
+                        hour=23, minute=59, second=59, microsecond=999999
+                    )
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except (ValueError, TypeError):
                 pass
@@ -1068,7 +1086,7 @@ class AnalyticsService:
 
         # 在Python中进行日期分组
         daily_data = {}
-        
+
         if use_amortization:
             # 均摊模式：需要考虑耐用品的分摊
             # 首先按日期分组收集商品
@@ -1076,30 +1094,39 @@ class AnalyticsService:
             for receipt, item in results:
                 if receipt.transaction_time:
                     date_key = receipt.transaction_time.date()
-                    
+
                     # 在均摊模式下，过滤掉不在均摊期内的耐用品
                     if item.durable_info:
                         durable_info = item.durable_info
-                        if (durable_info.start_date and durable_info.end_date and 
-                            not (durable_info.start_date <= date_key <= durable_info.end_date)):
+                        if (
+                            durable_info.start_date
+                            and durable_info.end_date
+                            and not (
+                                durable_info.start_date
+                                <= date_key
+                                <= durable_info.end_date
+                            )
+                        ):
                             # 耐用品不在均摊期内，跳过
                             continue
-                    
+
                     if date_key not in items_by_date:
                         items_by_date[date_key] = []
                     items_by_date[date_key].append(item)
-            
+
             # 为每个日期计算均摊成本
             for date_key, items in items_by_date.items():
                 total_jpy = 0
                 total_cny = 0
-                
+
                 for item in items:
-                    amortized_jpy, amortized_cny = AnalyticsService._calculate_amortized_cost(item, date_key)
+                    amortized_jpy, amortized_cny = (
+                        AnalyticsService._calculate_amortized_cost(item, date_key)
+                    )
                     # 确保返回值不为None
                     total_jpy += amortized_jpy or 0
                     total_cny += amortized_cny or 0
-                
+
                 daily_data[date_key] = {
                     "total_jpy": total_jpy,
                     "total_cny": total_cny,
@@ -1161,11 +1188,11 @@ class AnalyticsService:
             # 在均摊模式下，需要考虑所有耐用品（不仅仅是当日购买的）
             # 获取所有可能在当日产生均摊成本的耐用品
             durable_items = []
-            
+
             # 1. 获取当日购买的所有商品（包括耐用品和常规商品）
             start_datetime = datetime.combine(target_date, datetime.min.time())
             end_datetime = datetime.combine(target_date, datetime.max.time())
-            
+
             daily_query = (
                 db.session.query(Item)
                 .join(Receipt)
@@ -1176,9 +1203,9 @@ class AnalyticsService:
                     Receipt.transaction_time <= end_datetime,
                 )
             )
-            
+
             daily_items = daily_query.all()
-            
+
             # 2. 获取所有在当日有均摊成本的耐用品（不限购买日期）
             all_durable_query = (
                 db.session.query(Item)
@@ -1190,21 +1217,26 @@ class AnalyticsService:
                     DurableGood.end_date >= target_date,
                 )
             )
-            
+
             all_durable_items = all_durable_query.all()
-            
+
             # 合并并去重商品列表
             item_ids = set()
             combined_items = []
-            
+
             # 添加当日购买的商品，但过滤掉不在均摊期内的耐用品
             for item in daily_items:
                 if item.id not in item_ids:
                     # 如果是耐用品，检查是否在均摊期内
                     if item.durable_info:
                         durable_info = item.durable_info
-                        if (durable_info.start_date and durable_info.end_date and 
-                            durable_info.start_date <= target_date <= durable_info.end_date):
+                        if (
+                            durable_info.start_date
+                            and durable_info.end_date
+                            and durable_info.start_date
+                            <= target_date
+                            <= durable_info.end_date
+                        ):
                             # 在均摊期内，添加
                             combined_items.append(item)
                             item_ids.add(item.id)
@@ -1213,13 +1245,13 @@ class AnalyticsService:
                         # 常规商品，直接添加
                         combined_items.append(item)
                         item_ids.add(item.id)
-            
+
             # 添加有均摊成本的耐用品
             for item in all_durable_items:
                 if item.id not in item_ids:
                     combined_items.append(item)
                     item_ids.add(item.id)
-                    
+
             items = combined_items
         else:
             # 常规模式下，只查询当日购买的商品
@@ -1247,21 +1279,26 @@ class AnalyticsService:
             daily_cost_jpy = None
             daily_cost_cny = None
             amortization_info = None
-            
+
             if use_amortization and item.durable_info:
                 # 耐用品在均摊模式下的处理
                 durable_info = item.durable_info
-                if (durable_info.start_date and durable_info.end_date and 
-                    durable_info.start_date <= target_date <= durable_info.end_date):
-                    
+                if (
+                    durable_info.start_date
+                    and durable_info.end_date
+                    and durable_info.start_date <= target_date <= durable_info.end_date
+                ):
+
                     # 在均摊期间内
-                    total_days = (durable_info.end_date - durable_info.start_date).days + 1
+                    total_days = (
+                        durable_info.end_date - durable_info.start_date
+                    ).days + 1
                     daily_cost_jpy = (item.price_jpy or 0) / total_days
                     daily_cost_cny = (item.price_cny or 0) / total_days
-                    
+
                     display_jpy, display_cny = daily_cost_jpy, daily_cost_cny
                     is_amortized = True
-                    
+
                     amortization_info = {
                         "total_days": total_days,
                         "start_date": durable_info.start_date.isoformat(),
@@ -1275,7 +1312,7 @@ class AnalyticsService:
             else:
                 # 常规商品或非均摊模式
                 display_jpy, display_cny = item.price_jpy or 0, item.price_cny or 0
-                
+
             # 获取分类层级信息
             category_info = {}
             if item.category:
@@ -1317,11 +1354,11 @@ class AnalyticsService:
                     else None
                 ),
             }
-            
+
             # 添加均摊信息（如果有的话）
             if amortization_info:
                 item_data["amortization_info"] = amortization_info
-                
+
             items_data.append(item_data)
 
         # 按价格从大到小排序
@@ -1371,7 +1408,9 @@ class AnalyticsService:
                 # 包含完整的最后一天：将结束日期设为当天的最后时刻
                 if end_datetime.time() == datetime.min.time():
                     # 如果只有日期没有时间，则包含整天
-                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    end_datetime = end_datetime.replace(
+                        hour=23, minute=59, second=59, microsecond=999999
+                    )
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except (ValueError, TypeError):
                 pass
@@ -1555,7 +1594,9 @@ class AnalyticsService:
                 # 包含完整的最后一天：将结束日期设为当天的最后时刻
                 if end_datetime.time() == datetime.min.time():
                     # 如果只有日期没有时间，则包含整天
-                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    end_datetime = end_datetime.replace(
+                        hour=23, minute=59, second=59, microsecond=999999
+                    )
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except (ValueError, TypeError):
                 pass
@@ -1647,29 +1688,29 @@ class AnalyticsService:
     def _calculate_amortized_cost(item, target_date):
         """
         计算耐用品在指定日期的均摊成本
-        
+
         Args:
             item: 商品对象
             target_date: 目标日期
-            
+
         Returns:
             tuple: (均摊后的日元价格, 均摊后的人民币价格)
         """
         # 如果不是耐用品，返回原价格（确保不为None）
         if not item.durable_info:
             return item.price_jpy or 0, item.price_cny or 0
-            
+
         durable_info = item.durable_info
-        
+
         # 如果没有设置时间范围，返回原价格（确保不为None）
         if not durable_info.start_date or not durable_info.end_date:
             return item.price_jpy or 0, item.price_cny or 0
-            
+
         # 计算总使用天数
         total_days = (durable_info.end_date - durable_info.start_date).days + 1
         if total_days <= 0:
             return item.price_jpy or 0, item.price_cny or 0
-            
+
         # 检查目标日期是否在使用期间内
         try:
             if isinstance(target_date, str):
@@ -1679,28 +1720,30 @@ class AnalyticsService:
         except (ValueError, TypeError):
             # 日期解析失败，返回原价格
             return item.price_jpy or 0, item.price_cny or 0
-            
+
         if target_date < durable_info.start_date or target_date > durable_info.end_date:
             # 不在使用期间内，成本为0
             return 0, 0
-            
+
         # 计算每日均摊成本
         daily_jpy = (item.price_jpy or 0) / total_days
         daily_cny = (item.price_cny or 0) / total_days
-        
+
         return daily_jpy, daily_cny
 
     @staticmethod
-    def _get_amortized_spending_for_date_range(items, start_date, end_date, use_amortization=False):
+    def _get_amortized_spending_for_date_range(
+        items, start_date, end_date, use_amortization=False
+    ):
         """
         计算指定日期范围内的均摊支出
-        
+
         Args:
             items: 商品列表
             start_date: 开始日期
             end_date: 结束日期
             use_amortization: 是否使用均摊模式
-            
+
         Returns:
             dict: {'jpy': 总日元支出, 'cny': 总人民币支出}
         """
@@ -1708,26 +1751,26 @@ class AnalyticsService:
             # 不使用均摊模式，直接返回原始价格总和
             total_jpy = sum(item.price_jpy or 0 for item in items)
             total_cny = sum(item.price_cny or 0 for item in items)
-            return {'jpy': total_jpy, 'cny': total_cny}
-            
+            return {"jpy": total_jpy, "cny": total_cny}
+
         # 使用均摊模式
         total_jpy = 0
         total_cny = 0
-        
-        # 解析日期 - 如果没有提供日期范围，则不进行均摊计算
+
+        # 解析日期 - 如果没有提供日期范围，在均摊模式下应该计算当前时间点的均摊成本
         if not start_date or not end_date:
             # 没有日期范围，返回原始价格总和
             total_jpy = sum(item.price_jpy or 0 for item in items)
             total_cny = sum(item.price_cny or 0 for item in items)
-            return {'jpy': total_jpy, 'cny': total_cny}
-            
+            return {"jpy": total_jpy, "cny": total_cny}
+
         # 转换日期格式
         try:
             if isinstance(start_date, str):
                 start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
             elif isinstance(start_date, datetime):
                 start_date = start_date.date()
-                
+
             if isinstance(end_date, str):
                 end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
             elif isinstance(end_date, datetime):
@@ -1736,8 +1779,8 @@ class AnalyticsService:
             # 日期解析失败，返回原始价格总和
             total_jpy = sum(item.price_jpy or 0 for item in items)
             total_cny = sum(item.price_cny or 0 for item in items)
-            return {'jpy': total_jpy, 'cny': total_cny}
-            
+            return {"jpy": total_jpy, "cny": total_cny}
+
         for item in items:
             if not item.durable_info:
                 # 非耐用品，直接计入成本
@@ -1746,32 +1789,34 @@ class AnalyticsService:
             else:
                 # 耐用品，计算期间内的均摊成本
                 durable_info = item.durable_info
-                
+
                 if not durable_info.start_date or not durable_info.end_date:
                     # 没有设置时间范围，按原价计算
                     total_jpy += item.price_jpy or 0
                     total_cny += item.price_cny or 0
                     continue
-                    
+
                 # 计算重叠期间
                 overlap_start = max(start_date, durable_info.start_date)
                 overlap_end = min(end_date, durable_info.end_date)
-                
+
                 if overlap_start <= overlap_end:
                     # 有重叠期间
                     overlap_days = (overlap_end - overlap_start).days + 1
-                    total_use_days = (durable_info.end_date - durable_info.start_date).days + 1
-                    
+                    total_use_days = (
+                        durable_info.end_date - durable_info.start_date
+                    ).days + 1
+
                     if total_use_days > 0:
                         # 计算重叠期间的均摊成本
                         daily_jpy = (item.price_jpy or 0) / total_use_days
                         daily_cny = (item.price_cny or 0) / total_use_days
-                        
+
                         total_jpy += daily_jpy * overlap_days
                         total_cny += daily_cny * overlap_days
                 # 如果没有重叠期间，该耐用品在此期间内的成本为0，不计入总成本
-                        
-        return {'jpy': total_jpy, 'cny': total_cny}
+
+        return {"jpy": total_jpy, "cny": total_cny}
 
 
 class DataMiningService:
@@ -1816,7 +1861,9 @@ class DataMiningService:
                 # 包含完整的最后一天：将结束日期设为当天的最后时刻
                 if end_datetime.time() == datetime.min.time():
                     # 如果只有日期没有时间，则包含整天
-                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    end_datetime = end_datetime.replace(
+                        hour=23, minute=59, second=59, microsecond=999999
+                    )
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except (ValueError, TypeError):
                 pass
@@ -1959,7 +2006,9 @@ class DataMiningService:
                     # 包含完整的最后一天：将结束日期设为当天的最后时刻
                     if end_datetime.time() == datetime.min.time():
                         # 如果只有日期没有时间，则包含整天
-                        end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+                        end_datetime = end_datetime.replace(
+                            hour=23, minute=59, second=59, microsecond=999999
+                        )
                     query = query.filter(Receipt.transaction_time <= end_datetime)
                 except (ValueError, TypeError):
                     pass
