@@ -602,6 +602,10 @@ class ExportService:
         if end_date := args.get("end_date"):
             try:
                 end_datetime = datetime.fromisoformat(end_date)
+                # 包含完整的最后一天：将结束日期设为次日开始时间，然后使用小于比较
+                if end_datetime.time() == datetime.min.time():
+                    # 如果只有日期没有时间，则包含整天
+                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except ValueError:
                 pass
@@ -802,6 +806,10 @@ class AnalyticsService:
         if end_date and isinstance(end_date, str):
             try:
                 end_datetime = datetime.fromisoformat(end_date)
+                # 包含完整的最后一天：将结束日期设为当天的最后时刻
+                if end_datetime.time() == datetime.min.time():
+                    # 如果只有日期没有时间，则包含整天
+                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                 receipt_query = receipt_query.filter(
                     Receipt.transaction_time <= end_datetime
                 )
@@ -828,6 +836,10 @@ class AnalyticsService:
             if end_date and isinstance(end_date, str):
                 try:
                     end_datetime = datetime.fromisoformat(end_date)
+                    # 包含完整的最后一天：将结束日期设为当天的最后时刻
+                    if end_datetime.time() == datetime.min.time():
+                        # 如果只有日期没有时间，则包含整天
+                        end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                     items_query = items_query.filter(Receipt.transaction_time <= end_datetime)
                 except (ValueError, TypeError):
                     pass
@@ -866,6 +878,10 @@ class AnalyticsService:
             if end_date and isinstance(end_date, str):
                 try:
                     end_datetime = datetime.fromisoformat(end_date)
+                    # 包含完整的最后一天：将结束日期设为当天的最后时刻
+                    if end_datetime.time() == datetime.min.time():
+                        # 如果只有日期没有时间，则包含整天
+                        end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                     total_spending_jpy = total_spending_jpy.filter(
                         Receipt.transaction_time <= end_datetime
                     )
@@ -905,6 +921,10 @@ class AnalyticsService:
             if end_date and isinstance(end_date, str):
                 try:
                     end_datetime = datetime.fromisoformat(end_date)
+                    # 包含完整的最后一天：将结束日期设为当天的最后时刻
+                    if end_datetime.time() == datetime.min.time():
+                        # 如果只有日期没有时间，则包含整天
+                        end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                     date_range = date_range.filter(
                         Receipt.transaction_time <= end_datetime
                     )
@@ -996,6 +1016,10 @@ class AnalyticsService:
         if end_date and isinstance(end_date, str):
             try:
                 end_datetime = datetime.fromisoformat(end_date)
+                # 包含完整的最后一天：将结束日期设为当天的最后时刻
+                if end_datetime.time() == datetime.min.time():
+                    # 如果只有日期没有时间，则包含整天
+                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except (ValueError, TypeError):
                 pass
@@ -1344,6 +1368,10 @@ class AnalyticsService:
         if end_date and isinstance(end_date, str):
             try:
                 end_datetime = datetime.fromisoformat(end_date)
+                # 包含完整的最后一天：将结束日期设为当天的最后时刻
+                if end_datetime.time() == datetime.min.time():
+                    # 如果只有日期没有时间，则包含整天
+                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except (ValueError, TypeError):
                 pass
@@ -1524,6 +1552,10 @@ class AnalyticsService:
         if end_date and isinstance(end_date, str):
             try:
                 end_datetime = datetime.fromisoformat(end_date)
+                # 包含完整的最后一天：将结束日期设为当天的最后时刻
+                if end_datetime.time() == datetime.min.time():
+                    # 如果只有日期没有时间，则包含整天
+                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except (ValueError, TypeError):
                 pass
@@ -1781,6 +1813,10 @@ class DataMiningService:
         if end_date and isinstance(end_date, str):
             try:
                 end_datetime = datetime.fromisoformat(end_date)
+                # 包含完整的最后一天：将结束日期设为当天的最后时刻
+                if end_datetime.time() == datetime.min.time():
+                    # 如果只有日期没有时间，则包含整天
+                    end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                 query = query.filter(Receipt.transaction_time <= end_datetime)
             except (ValueError, TypeError):
                 pass
@@ -1920,6 +1956,10 @@ class DataMiningService:
             if end_date and isinstance(end_date, str):
                 try:
                     end_datetime = datetime.fromisoformat(end_date)
+                    # 包含完整的最后一天：将结束日期设为当天的最后时刻
+                    if end_datetime.time() == datetime.min.time():
+                        # 如果只有日期没有时间，则包含整天
+                        end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
                     query = query.filter(Receipt.transaction_time <= end_datetime)
                 except (ValueError, TypeError):
                     pass
