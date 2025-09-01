@@ -11,6 +11,7 @@ class AnalyticsPage {
     this.chartType = "pie"; // 添加图表类型状态
     this.currentCategoryData = null; // 保存当前分类数据以便重绘
     this.legendCollapsed = false; // 图例折叠状态
+    this.durableAmortizationMode = false; // 耐用品均摊模式
 
     this.init();
   }
@@ -71,6 +72,12 @@ class AnalyticsPage {
         this.toggleLegend();
       }
     });
+
+    // 耐用品均摊模式切换
+    document.getElementById("durableAmortizationMode").addEventListener("change", (e) => {
+      this.durableAmortizationMode = e.target.checked;
+      this.applyDateFilter(); // 重新加载数据
+    });
   }
 
   initDateFilter() {
@@ -93,6 +100,11 @@ class AnalyticsPage {
     const params = new URLSearchParams();
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
+    
+    // 添加耐用品均摊模式参数
+    if (this.durableAmortizationMode) {
+      params.append("durable_amortization", "true");
+    }
 
     return params.toString();
   }
@@ -354,7 +366,13 @@ class AnalyticsPage {
 
   async loadDailyItems(date) {
     try {
-      const response = await fetch(`/api/analytics/daily/${date}/items`);
+      const params = new URLSearchParams();
+      if (this.durableAmortizationMode) {
+        params.append("durable_amortization", "true");
+      }
+      
+      const url = `/api/analytics/daily/${date}/items` + (params.toString() ? `?${params.toString()}` : '');
+      const response = await fetch(url);
       const data = await response.json();
 
       if (response.ok) {
@@ -462,24 +480,45 @@ class AnalyticsPage {
       .join("");
 
     const hasPrice = item.price_jpy || item.price_cny;
-    const priceDisplay = !hasPrice
-      ? '<span class="text-muted">价格待定</span>'
-      : `${
-          item.price_jpy
-            ? `<span class="analytics-price-jpy">¥${item.price_jpy.toLocaleString()}</span>`
-            : ""
+    
+    // 构建价格显示，包含均摊标识
+    let priceDisplay = '';
+    if (!hasPrice) {
+      priceDisplay = '<span class="text-muted">价格待定</span>';
+    } else {
+      const jpyPart = item.price_jpy 
+        ? `<span class="analytics-price-jpy">¥${item.price_jpy.toLocaleString()}</span>`
+        : "";
+      const cnyPart = item.price_cny 
+        ? `<span class="analytics-price-cny">￥${item.price_cny.toLocaleString()}</span>`
+        : "";
+        
+      priceDisplay = jpyPart + ' ' + cnyPart;
+      
+      // 如果是均摊价格，添加均摊标识和详细信息
+      if (item.is_amortized && item.amortization_info) {
+        priceDisplay += ' <span class="analytics-amortized-badge">每日均摊</span>';
+        
+        // 添加原始价格信息（鼠标悬停显示）
+        if (item.original_price_jpy || item.original_price_cny) {
+          const originalJpy = item.original_price_jpy ? `¥${item.original_price_jpy.toLocaleString()}` : "";
+          const originalCny = item.original_price_cny ? `￥${item.original_price_cny.toLocaleString()}` : "";
+          const originalPrice = originalJpy + ' ' + originalCny;
+          
+          priceDisplay += `<span class="analytics-original-price" title="原价: ${originalPrice.trim()}">(原价: ${originalPrice.trim()})</span>`;
         }
-       ${
-         item.price_cny
-           ? `<span class="analytics-price-cny">￥${item.price_cny.toLocaleString()}</span>`
-           : ""
-       }`;
+      } else if (item.is_durable) {
+        // 耐用品但不在均摊期间内
+        priceDisplay += ' <span class="analytics-durable-badge">耐用品</span>';
+      }
+    }
 
     return `
       <div class="analytics-item-compact" 
            data-item-id="${item.id || ""}"
            data-price-jpy="${item.price_jpy || 0}"
-           data-is-special="${item.is_special_offer || false}">
+           data-is-special="${item.is_special_offer || false}"
+           data-is-amortized="${item.is_amortized || false}">
         
         <!-- 商品名称和价格行 -->
         <div class="analytics-item-header">
@@ -513,6 +552,16 @@ class AnalyticsPage {
             <div class="analytics-item-detail-row">
               <i class="fas fa-percent"></i>
               <span>${item.special_info}</span>
+            </div>
+          `
+              : ""
+          }
+          ${
+            item.is_amortized && item.amortization_info
+              ? `
+            <div class="analytics-item-detail-row">
+              <i class="fas fa-calendar-alt"></i>
+              <span>均摊期间: ${item.amortization_info.start_date} 至 ${item.amortization_info.end_date} (${item.amortization_info.total_days}天)</span>
             </div>
           `
               : ""

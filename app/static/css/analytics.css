@@ -80,6 +80,81 @@ html {
     gap: 0.5rem;
 }
 
+/* 视图选项容器 */
+.view-options-container {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.view-option {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.view-option .form-check {
+    margin-bottom: 0;
+}
+
+.view-option .form-check-label {
+    font-weight: 500;
+    color: #495057;
+    cursor: pointer;
+}
+
+.view-option .form-check-label i {
+    color: #6c757d;
+}
+
+.view-option .form-text {
+    margin-left: 0;
+    font-size: 0.8rem;
+}
+
+/* 均摊标识样式 */
+.analytics-amortized-badge {
+    display: inline-block;
+    padding: 0.2rem 0.4rem;
+    background-color: #17a2b8;
+    color: white;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    margin-left: 0.25rem;
+}
+
+.analytics-durable-badge {
+    display: inline-block;
+    padding: 0.2rem 0.4rem;
+    background-color: #6c757d;
+    color: white;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    margin-left: 0.25rem;
+}
+
+.analytics-original-price {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-left: 0.5rem;
+    font-style: italic;
+}
+
+/* 均摊标识样式 */
+.analytics-amortized-badge {
+    display: inline-block;
+    padding: 0.2rem 0.4rem;
+    background-color: #17a2b8;
+    color: white;
+    font-size: 0.7rem;
+    border-radius: 3px;
+    font-weight: 500;
+    margin-left: 0.25rem;
+}
+
 /* 段落标题 */
 .section-title {
     display: flex;
