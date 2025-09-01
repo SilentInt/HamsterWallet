@@ -1,6 +1,6 @@
 # app/schemas.py
 from .database import ma
-from .models import Receipt, Item
+from .models import Receipt, Item, DurableGood
 from .category_models import Category
 from marshmallow import fields, Schema
 
@@ -14,10 +14,20 @@ class CategorySchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
 
 
+class DurableGoodSchema(ma.SQLAlchemyAutoSchema):
+    """耐用品 Schema"""
+
+    class Meta:
+        model = DurableGood
+        load_instance = True
+        include_fk = True
+
+
 class ItemSchema(ma.SQLAlchemyAutoSchema):
     """商品 Schema"""
     category = fields.Nested(CategorySchema, allow_none=True)
     category_path = fields.Method("get_category_path")
+    durable_info = fields.Nested(DurableGoodSchema, allow_none=True)
 
     class Meta:
         model = Item

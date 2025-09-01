@@ -165,6 +165,18 @@ class ItemEditor {
                       </div>
                     </div>
                   </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_durable" id="editIsDurable" ${
+      item.durable_info ? "checked" : ""
+                        }>
+                        <label class="form-check-label" for="editIsDurable">
+                          <i class="fas fa-calendar-alt me-1"></i>耐用品
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <div class="mb-3" id="specialInfoGroup" style="display: ${
@@ -177,6 +189,27 @@ class ItemEditor {
                     item.special_info || ""
                   }" placeholder="例如：8折优惠、买一送一、限时特价等" />
                   <div class="form-text">描述具体的特价活动内容</div>
+                </div>
+
+                <div class="mb-3" id="durableInfoGroup" style="display: ${
+      item.durable_info ? "block" : "none"
+      };">
+                  <label class="form-label">
+                    <i class="fas fa-calendar-check me-1"></i>分摊时间设定
+                  </label>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label class="form-label">开始日期</label>
+                      <input type="date" class="form-control" name="durable_start_date" value="${item.durable_info ? (item.durable_info.start_date || "") : ""
+      }" />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">结束日期</label>
+                      <input type="date" class="form-control" name="durable_end_date" value="${item.durable_info ? (item.durable_info.end_date || "") : ""
+                      }" />
+                    </div>
+                  </div>
+                  <div class="form-text">设置耐用品的使用期间，用于成本分摊计算</div>
                 </div>
                 
                 ${categoryHtml}
@@ -381,6 +414,8 @@ class ItemEditor {
     const form = document.getElementById("editItemForm");
     const specialOfferCheckbox = document.getElementById("editIsSpecialPrice");
     const specialInfoGroup = document.getElementById("specialInfoGroup");
+    const durableCheckbox = document.getElementById("editIsDurable");
+    const durableInfoGroup = document.getElementById("durableInfoGroup");
 
     // 分类选择框和隐藏的category_id字段
     const category1Select = document.getElementById("editCategory1");
@@ -410,6 +445,34 @@ class ItemEditor {
           if (specialInfoInput) {
             specialInfoInput.value = "";
           }
+        }, 300);
+      }
+    });
+
+    // 耐用品切换事件
+    durableCheckbox.addEventListener("change", (e) => {
+      if (e.target.checked) {
+        durableInfoGroup.style.display = "block";
+        // 添加淡入动画
+        durableInfoGroup.style.opacity = "0";
+        setTimeout(() => {
+          durableInfoGroup.style.transition = "opacity 0.3s ease";
+          durableInfoGroup.style.opacity = "1";
+        }, 10);
+      } else {
+        durableInfoGroup.style.transition = "opacity 0.3s ease";
+        durableInfoGroup.style.opacity = "0";
+        setTimeout(() => {
+          durableInfoGroup.style.display = "none";
+          // 清空耐用品日期信息
+          const startDateInput = durableInfoGroup.querySelector(
+            'input[name="durable_start_date"]'
+          );
+          const endDateInput = durableInfoGroup.querySelector(
+            'input[name="durable_end_date"]'
+          );
+          if (startDateInput) startDateInput.value = "";
+          if (endDateInput) endDateInput.value = "";
         }, 300);
       }
     });

@@ -1,6 +1,6 @@
 # app/models.py
 import enum
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import List, Optional
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from sqlalchemy import Integer, String, Float, DateTime, Boolean, Date, Enum, ForeignKey
@@ -106,8 +106,8 @@ class DurableGood(db.Model):
     item_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("items.id"), nullable=False, unique=True
     )
-    start_date: Mapped[Optional[datetime]] = mapped_column(Date)
-    end_date: Mapped[Optional[datetime]] = mapped_column(Date)
+    start_date: Mapped[Optional[date]] = mapped_column(Date)
+    end_date: Mapped[Optional[date]] = mapped_column(Date)
     item: Mapped["Item"] = relationship("Item", back_populates="durable_info")
 
 

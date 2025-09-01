@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import or_, and_
 from flask import current_app
 
-from .models import db, Receipt, Item, RecognitionStatus, ComparisonGroup
+from .models import db, Receipt, Item, RecognitionStatus, ComparisonGroup, DurableGood
 from .category_models import Category
 from .ai_service import AIService
 from .file_service import FileService
@@ -386,6 +386,24 @@ class ItemService:
             )
 
         db.session.add(new_item)
+        db.session.flush()  # 获得item.id
+
+        # 处理耐用品信息
+        if "is_durable" in data and data["is_durable"]:
+            durable_info = DurableGood()
+            durable_info.item_id = new_item.id
+
+            # 设置耐用品的开始和结束日期
+            if "durable_start_date" in data and data["durable_start_date"]:
+                durable_info.start_date = datetime.strptime(
+                    data["durable_start_date"], "%Y-%m-%d"
+                ).date()
+            if "durable_end_date" in data and data["durable_end_date"]:
+                durable_info.end_date = datetime.strptime(
+                    data["durable_end_date"], "%Y-%m-%d"
+                ).date()
+
+            db.session.add(durable_info)
 
         # 更新对应小票的最后修改时间
         if new_item.receipt_id:
@@ -426,6 +444,30 @@ class ItemService:
                 special_info is not None and special_info != "" and special_info != "否"
             )
 
+        # 处理耐用品信息
+        if "is_durable" in data:
+            is_durable = data["is_durable"]
+            if is_durable:
+                # 创建或更新耐用品信息
+                if not item.durable_info:
+                    item.durable_info = DurableGood()
+                    item.durable_info.item_id = item.id
+
+                # 更新耐用品的开始和结束日期
+                if "durable_start_date" in data and data["durable_start_date"]:
+                    item.durable_info.start_date = datetime.strptime(
+                        data["durable_start_date"], "%Y-%m-%d"
+                    ).date()
+                if "durable_end_date" in data and data["durable_end_date"]:
+                    item.durable_info.end_date = datetime.strptime(
+                        data["durable_end_date"], "%Y-%m-%d"
+                    ).date()
+            else:
+                # 删除耐用品信息
+                if item.durable_info:
+                    db.session.delete(item.durable_info)
+                    item.durable_info = None
+
         # 更新对应小票的最后修改时间
         if item.receipt:
             item.receipt.updated_at = datetime.now(timezone.utc)
@@ -459,28 +501,41 @@ class ItemService:
                 # 筛选非特价商品：直接使用is_special_offer字段
                 query = query.filter(Item.is_special_offer == False)
 
+        # 耐用品筛选
+        is_durable = args.get("is_durable")
+        if is_durable and is_durable.strip():  # 只有当参数不为空时才筛选
+            is_durable_flag = is_durable.lower() == "true"
+            if is_durable_flag:
+                # 筛选耐用品：有 durable_info 关联记录
+                query = query.join(DurableGood, Item.id == DurableGood.item_id)
+            else:
+                # 筛选非耐用品：没有 durable_info 关联记录
+                query = query.outerjoin(
+                    DurableGood, Item.id == DurableGood.item_id
+                ).filter(DurableGood.id == None)
+
         # 分类筛选 - 支持搜索三级分类中的任意一级
         if category_filter := args.get("category_filter"):
             category_term = f"%{category_filter}%"
-            
+
             # 查找所有匹配的分类（任意级别）
             matching_categories = Category.query.filter(
                 Category.name.ilike(category_term)
             ).all()
-            
+
             if matching_categories:
                 # 收集所有相关的分类ID（包括匹配分类及其所有后代）
                 category_ids = set()
-                
+
                 for category in matching_categories:
                     # 添加匹配的分类本身
                     category_ids.add(category.id)
-                    
+
                     # 添加所有后代分类
                     descendants = category.get_descendants()
                     for desc in descendants:
                         category_ids.add(desc.id)
-                
+
                 # 筛选属于这些分类的商品
                 query = query.filter(Item.category_id.in_(list(category_ids)))
 
@@ -561,25 +616,25 @@ class ExportService:
         # 商品分类筛选 - 支持搜索三级分类中的任意一级
         if category := args.get("category"):
             category_term = f"%{category}%"
-            
+
             # 查找所有匹配的分类（任意级别）
             matching_categories = Category.query.filter(
                 Category.name.ilike(category_term)
             ).all()
-            
+
             if matching_categories:
                 # 收集所有相关的分类ID（包括匹配分类及其所有后代）
                 category_ids = set()
-                
+
                 for category_obj in matching_categories:
                     # 添加匹配的分类本身
                     category_ids.add(category_obj.id)
-                    
+
                     # 添加所有后代分类
                     descendants = category_obj.get_descendants()
                     for desc in descendants:
                         category_ids.add(desc.id)
-                
+
                 # 筛选属于这些分类的商品
                 query = query.filter(Item.category_id.in_(list(category_ids)))
 
@@ -917,25 +972,25 @@ class AnalyticsService:
         # 商品分类筛选 - 支持搜索三级分类中的任意一级
         if category := args.get("category"):
             category_term = f"%{category}%"
-            
+
             # 查找所有匹配的分类（任意级别）
             matching_categories = Category.query.filter(
                 Category.name.ilike(category_term)
             ).all()
-            
+
             if matching_categories:
                 # 收集所有相关的分类ID（包括匹配分类及其所有后代）
                 category_ids = set()
-                
+
                 for category_obj in matching_categories:
                     # 添加匹配的分类本身
                     category_ids.add(category_obj.id)
-                    
+
                     # 添加所有后代分类
                     descendants = category_obj.get_descendants()
                     for desc in descendants:
                         category_ids.add(desc.id)
-                
+
                 # 筛选属于这些分类的商品
                 query = query.filter(Item.category_id.in_(list(category_ids)))
 

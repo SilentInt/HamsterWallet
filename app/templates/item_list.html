@@ -49,6 +49,15 @@
                         </select>
                     </div>
                     
+                    <!-- 耐用品筛选 -->
+                    <div class="col-md-2 filter-form-group">
+                        <label class="filter-label">耐用品</label>
+                        <select class="form-select" name="is_durable">
+                            <option value="">全部商品</option>
+                            <option value="true" {{ 'selected' if request.args.get('is_durable')=='true' }}>耐用品</option>
+                            <option value="false" {{ 'selected' if request.args.get('is_durable')=='false' }}>非耐用品</option>
+                        </select>
+                    </div>
                     <!-- 分类筛选 -->
                     <div class="col-md-2 filter-form-group">
                         <label class="filter-label">分类</label>
@@ -126,6 +135,9 @@
                         {% endif %}
                         {% if item.is_special_offer %}
                         <span class="badge bg-warning">特价</span>
+                        {% endif %}
+                        {% if item.durable_info %}
+                        <span class="badge bg-info">耐用品</span>
                         {% endif %}
                     </div>
                     

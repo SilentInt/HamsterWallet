@@ -319,6 +319,9 @@
                 {% if item.is_special_offer %}
                 <span class="badge bg-warning">特价</span>
                 {% endif %}
+                {% if item.durable_info %}
+                <span class="badge bg-info">耐用品</span>
+                {% endif %}
               </div>
 
               <!-- 价格和操作行 -->
@@ -567,21 +570,26 @@
             </div>
           </div>
 
-          <div class="mb-3">
-            <div class="form-check">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                name="is_special_offer"
-                id="addIsSpecialPrice"
-              />
-              <label class="form-check-label" for="addIsSpecialPrice"
-                >特价商品</label
-              >
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_special_offer" id="addIsSpecialPrice" />
+                  <label class="form-check-label" for="addIsSpecialPrice">特价商品</label>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div class="mb-3">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_durable" id="addIsDurable" />
+                  <label class="form-check-label" for="addIsDurable">耐用品</label>
+                </div>
+                </div>
+                </div>
+                </div>
+                
+                <div class="mb-3" id="addSpecialInfoGroup" style="display: none;">
             <label class="form-label">特价信息</label>
             <input
               type="text"
@@ -590,6 +598,21 @@
               id="addSpecialInfo"
               placeholder="例如：8折优惠、买一送一等"
             />
+          </div>
+
+          <div class="mb-3" id="addDurableInfoGroup" style="display: none;">
+            <label class="form-label">分摊时间设定</label>
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-label">开始日期</label>
+                <input type="date" class="form-control" name="durable_start_date" id="addDurableStartDate" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">结束日期</label>
+                <input type="date" class="form-control" name="durable_end_date" id="addDurableEndDate" />
+              </div>
+            </div>
+            <div class="form-text">设置耐用品的使用期间，用于成本分摊计算</div>
           </div>
 
           <div class="row">
@@ -691,6 +714,28 @@ $(document).ready(function() {
     
     // 初始化徽章动画
     $('.badge').addClass('animate-in');
+
+  // 添加商品模态框中的开关处理
+  $('#addIsSpecialPrice').change(function () {
+    const specialInfoGroup = $('#addSpecialInfoGroup');
+    if ($(this).is(':checked')) {
+      specialInfoGroup.slideDown(300);
+    } else {
+      specialInfoGroup.slideUp(300);
+      $('#addSpecialInfo').val('');
+    }
+  });
+
+  $('#addIsDurable').change(function () {
+    const durableInfoGroup = $('#addDurableInfoGroup');
+    if ($(this).is(':checked')) {
+      durableInfoGroup.slideDown(300);
+    } else {
+      durableInfoGroup.slideUp(300);
+      $('#addDurableStartDate').val('');
+      $('#addDurableEndDate').val('');
+    }
+  });
 });
 
 // 折叠状态管理 - 优化版
@@ -823,6 +868,9 @@ $('#addItemForm').on('submit', async function(e) {
   price_cny: $('#addPriceCny').val() ? parseFloat($('#addPriceCny').val()) : null,
   is_special_offer: $('#addIsSpecialPrice').is(':checked'),
   special_info: $('#addSpecialInfo').val() || null,
+  is_durable: $('#addIsDurable').is(':checked'),
+  durable_start_date: $('#addDurableStartDate').val() || null,
+  durable_end_date: $('#addDurableEndDate').val() || null,
   notes: $('#addNotes').val() || null,
   category_id: $('#addCategoryId').val() ? parseInt($('#addCategoryId').val()) : null
     };
