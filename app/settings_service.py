@@ -58,6 +58,7 @@ class SettingsService:
             prompt_settings = {
                 "receipt_prompt": settings.get("receipt_prompt", ""),
                 "category_prompt": settings.get("category_prompt", ""),
+                "batch_category_prompt": settings.get("batch_category_prompt", ""),
             }
 
             return ConfigManager.save_settings(prompt_settings)
@@ -95,6 +96,13 @@ class SettingsService:
         from config import ConfigManager
 
         return ConfigManager.get_default_prompt()
+
+    @staticmethod
+    def get_default_batch_category_prompt():
+        """获取默认批量分类Prompt"""
+        from config import ConfigManager
+
+        return ConfigManager.get_default_batch_category_prompt()
 
     @staticmethod
     def get_system_info():

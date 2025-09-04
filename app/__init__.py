@@ -8,6 +8,8 @@ from .database import db, ma
 from .frontend import frontend_bp
 from .category_api import category_bp
 from .category_frontend import category_frontend_bp
+from .batch_category_api import batch_category_bp
+from .batch_category_frontend import batch_category_frontend_bp
 from .settings_api import settings_bp
 from .resources import (
     ReceiptListResource,
@@ -50,6 +52,8 @@ def create_app(config_class=Config):
     app.register_blueprint(frontend_bp)
     app.register_blueprint(category_bp)
     app.register_blueprint(category_frontend_bp)
+    app.register_blueprint(batch_category_bp)
+    app.register_blueprint(batch_category_frontend_bp)
     app.register_blueprint(settings_bp)
 
     # 添加 CLI 命令

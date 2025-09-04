@@ -226,7 +226,11 @@
                             <label for="categoryPrompt" class="form-label">分类识别 Prompt</label>
                             <textarea class="form-control" id="categoryPrompt" name="categoryPrompt" rows="4"
                                 placeholder="请输入分类识别的提示词..."></textarea>
-                            <div class="form-text">用于指导AI进行商品分类的提示词</div>
+                            <div class="form-text">
+                                用于指导AI进行商品分类的提示词。提示词中可以使用 {categories} 和 {items} 占位符来插入分类列表和待分类商品。
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-2"
+                                    onclick="resetCategoryPromptToDefault()">恢复默认</button>
+                            </div>
                         </div>
 
                         <div class="d-grid">
@@ -897,6 +901,20 @@
             showToast('获取默认Prompt失败', 'error');
         });
     }
+
+        // 恢复默认分类识别Prompt
+        function resetCategoryPromptToDefault() {
+            $.get('/api/settings/default-batch-category-prompt', function (data) {
+                if (data.success) {
+                    $('#categoryPrompt').val(data.prompt);
+                    showToast('已恢复为默认分类识别Prompt', 'info');
+                } else {
+                    showToast('获取默认分类识别Prompt失败', 'error');
+                }
+            }).fail(function () {
+                showToast('获取默认分类识别Prompt失败', 'error');
+            });
+        }
 
     // 显示确认对话框
     function showConfirm(message, callback) {

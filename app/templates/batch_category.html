@@ -1,0 +1,1140 @@
+{% extends "base.html" %}
+
+{% block title %}分类重识别 - 仓鼠记账{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 任务控制面板样式 */
+    .task-control-panel {
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: var(--ios-shadow);
+        margin-bottom: 24px;
+        padding: 24px;
+    }
+
+    .task-status-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 2px solid var(--ios-gray-2);
+    }
+
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        animation: pulse 2s infinite;
+    }
+
+    .status-idle {
+        background-color: var(--ios-gray-5);
+        animation: none;
+    }
+
+    .status-running {
+        background-color: var(--ios-blue);
+    }
+
+    .status-completed {
+        background-color: var(--ios-green);
+        animation: none;
+    }
+
+    .status-failed {
+        background-color: var(--ios-red);
+        animation: none;
+    }
+
+    .status-stopped {
+        background-color: var(--ios-orange);
+        animation: none;
+    }
+
+    .status-applying {
+        background-color: var(--ios-orange);
+    }
+
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+
+    /* 进度条样式 */
+    .progress-container {
+        margin: 20px 0;
+    }
+
+    .progress {
+        height: 12px;
+        border-radius: 12px;
+        background-color: var(--ios-gray-2);
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        border-radius: 12px;
+        transition: width 0.3s ease;
+        background: linear-gradient(135deg, var(--ios-blue) 0%, #0056cc 100%);
+    }
+
+    /* 统计卡片 */
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin: 20px 0;
+    }
+
+    .stat-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: var(--ios-shadow);
+        border: 1px solid var(--ios-gray-2);
+        text-align: center;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    .stat-label {
+        color: var(--ios-gray-6);
+        font-size: 0.9rem;
+    }
+
+    /* 结果预览模态框 */
+    .results-modal .modal-content {
+        border-radius: 18px;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .results-table {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .table th {
+        background-color: var(--ios-gray-1);
+        border: none;
+        font-weight: 600;
+        color: #1d1d1f;
+    }
+
+    .table td {
+        border-color: var(--ios-gray-2);
+        vertical-align: middle;
+    }
+
+    /* 配置表单样式 */
+    .config-form {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: var(--ios-shadow);
+        border: 1px solid var(--ios-gray-2);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #1d1d1f;
+        margin-bottom: 8px;
+    }
+
+    /* 操作按钮组 */
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .action-buttons .btn {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .stats-container {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .action-buttons .btn {
+            flex: none;
+        }
+    }
+
+    /* 加载动画 */
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--ios-gray-3);
+        border-radius: 50%;
+        border-top-color: var(--ios-blue);
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* 隐藏类 */
+    .d-none {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="fas fa-magic me-2"></i>
+                分类重识别
+            </h2>
+        </div>
+    </div>
+
+    <!-- 任务控制面板 -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="task-control-panel">
+                <!-- 任务状态卡片 -->
+                <div class="task-status-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">
+                                <span class="status-indicator status-idle" id="statusIndicator"></span>
+                                <span id="statusText">就绪</span>
+                            </h5>
+                            <p class="text-muted mb-0" id="statusDescription">准备开始批量分类重识别任务</p>
+                        </div>
+                        <div class="text-end">
+                            <div class="text-muted small" id="taskTime"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 进度条 -->
+                <div class="progress-container" id="progressContainer" style="display: none;">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="small text-muted">处理进度</span>
+                        <span class="small text-muted" id="progressText">0 / 0</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- 统计信息 -->
+                <div class="stats-container" id="statsContainer" style="display: none;">
+                    <div class="stat-card">
+                        <div class="stat-number text-primary" id="totalItems">0</div>
+                        <div class="stat-label">总商品数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number text-success" id="successCount">0</div>
+                        <div class="stat-label">成功变更</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number text-warning" id="skippedCount">0</div>
+                        <div class="stat-label">无需变更</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number text-danger" id="failedCount">0</div>
+                        <div class="stat-label">处理失败</div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-primary" id="startBtn">
+                        <i class="fas fa-play me-2"></i>开始任务
+                    </button>
+                    <button type="button" class="btn btn-warning" id="stopBtn" style="display: none;">
+                        <i class="fas fa-stop me-2"></i>停止任务
+                    </button>
+                    <button type="button" class="btn btn-success" id="viewResultsBtn" style="display: none;">
+                        <i class="fas fa-eye me-2"></i>查看结果
+                    </button>
+                    <button type="button" class="btn btn-outline-success" id="viewCurrentResultsBtn"
+                        style="display: none;">
+                        <i class="fas fa-eye me-2"></i>查看当前结果
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="viewSummaryBtn" style="display: none;">
+                        <i class="fas fa-chart-bar me-2"></i>统计报告
+                    </button>
+                    <button type="button" class="btn btn-info" id="continueBtn" style="display: none;">
+                        <i class="fas fa-forward me-2"></i>继续识别
+                    </button>
+                    <button type="button" class="btn btn-outline-info" id="restartBtn" style="display: none;">
+                        <i class="fas fa-redo me-2"></i>重新开始
+                    </button>
+                    <button type="button" class="btn btn-primary" id="applyAllBtn" style="display: none;">
+                        <i class="fas fa-check me-2"></i>应用全部
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="clearBtn" style="display: none;">
+                        <i class="fas fa-trash me-2"></i>清理结果
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 配置面板 -->
+        <div class="col-lg-4">
+            <div class="config-form">
+                <h5 class="mb-3">
+                    <i class="fas fa-cog me-2"></i>任务配置
+                </h5>
+
+                <div class="mb-3">
+                    <label for="batchSize" class="form-label">批次大小</label>
+                    <select class="form-select" id="batchSize">
+                        <option value="20">20 个/批次</option>
+                        <option value="50" selected>50 个/批次</option>
+                        <option value="100">100 个/批次</option>
+                        <option value="200">200 个/批次</option>
+                    </select>
+                    <div class="form-text">较小的批次可以更频繁地查看进度，但总体用时更长</div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>说明：</strong>系统将使用预设的AI分类规则对所有商品进行重新分类。分类规则由系统管理员在后端配置，确保分类的一致性和准确性。
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 结果预览模态框 -->
+<div class="modal fade results-modal" id="resultsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-list-alt me-2"></i>分类重识别结果
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- 结果统计 -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-number text-success" id="modalSuccessCount">0</div>
+                            <div class="stat-label">成功变更</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-number text-info" id="modalAppliedCount">0</div>
+                            <div class="stat-label">已应用</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-number text-warning" id="modalSkippedCount">0</div>
+                            <div class="stat-label">无需变更</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-number text-danger" id="modalFailedCount">0</div>
+                            <div class="stat-label">处理失败</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 结果表格 -->
+                <div class="table-responsive">
+                    <table class="table table-hover results-table">
+                        <thead>
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" id="selectAllCheckbox" class="form-check-input">
+                                </th>
+                                <th>商品名称</th>
+                                <th>原分类</th>
+                                <th>新分类</th>
+                                <th>变更原因</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <!-- 结果行将在此处动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 结果信息 -->
+                <div class="text-center mb-3" id="resultsInfo" style="display: none;">
+                    <!-- 结果统计信息 -->
+                </div>
+
+                <!-- 加载中 -->
+                <div class="text-center py-4" id="resultsLoading">
+                    <div class="loading-spinner"></div>
+                    正在加载结果...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-info" id="applySelectedBtn">
+                    <i class="fas fa-check-square me-2"></i>应用选中
+                </button>
+                <button type="button" class="btn btn-primary" id="applyAllFromModalBtn">
+                    <i class="fas fa-check-double me-2"></i>应用全部
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>关闭
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    class BatchCategoryManager {
+        constructor() {
+            this.batchSize = 50;
+            this.isPolling = false;
+            this.pollInterval = null;
+
+            this.initEventListeners();
+            this.loadTaskStatus();
+        }
+
+        initEventListeners() {
+            document.getElementById('startBtn').addEventListener('click', () => this.startTask());
+            document.getElementById('stopBtn').addEventListener('click', () => this.stopTask());
+            document.getElementById('viewResultsBtn').addEventListener('click', () => this.viewResults());
+            document.getElementById('viewCurrentResultsBtn').addEventListener('click', () => this.viewCurrentResults());
+            document.getElementById('viewSummaryBtn').addEventListener('click', () => this.viewSummary());
+            document.getElementById('continueBtn').addEventListener('click', () => this.continueRecognition());
+            document.getElementById('restartBtn').addEventListener('click', () => this.restartTask());
+            document.getElementById('applyAllBtn').addEventListener('click', () => this.applyAll());
+            document.getElementById('clearBtn').addEventListener('click', () => this.clearTask());
+
+            // 模态框按钮
+            document.getElementById('applyAllFromModalBtn').addEventListener('click', () => this.applyAllFromModal());
+            document.getElementById('applySelectedBtn').addEventListener('click', () => this.applySelected());
+
+            // 全选复选框
+            document.getElementById('selectAllCheckbox').addEventListener('change', (e) => this.toggleSelectAll(e.target.checked));
+        }
+
+        async loadTaskStatus() {
+            try {
+                const response = await fetch('/api/batch-category/task');
+                const data = await response.json();
+
+                if (data.success) {
+                    this.updateUI(data.data);
+
+                    // 如果任务正在运行，开始轮询
+                    if (data.data.status === 'RUNNING' || data.data.status === 'APPLYING') {
+                        this.startPolling();
+                    }
+                }
+            } catch (error) {
+                console.error('加载任务状态失败:', error);
+                this.showAlert('加载任务状态失败', 'danger');
+            }
+        }
+
+        async startTask() {
+            const batchSize = parseInt(document.getElementById('batchSize').value);
+
+            try {
+                const response = await fetch('/api/batch-category/task', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        batch_size: batchSize
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.showAlert('任务已启动', 'success');
+                    this.batchSize = batchSize;
+                    this.startPolling();
+                } else {
+                    this.showAlert(data.message || '启动任务失败', 'danger');
+                }
+            } catch (error) {
+                console.error('启动任务失败:', error);
+                this.showAlert('启动任务失败', 'danger');
+            }
+        }
+
+        async stopTask() {
+            try {
+                const response = await fetch('/api/batch-category/task/stop', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.showAlert('任务已停止', 'warning');
+                    this.stopPolling();
+                } else {
+                    this.showAlert(data.message || '停止任务失败', 'danger');
+                }
+            } catch (error) {
+                console.error('停止任务失败:', error);
+                this.showAlert('停止任务失败', 'danger');
+            }
+        }
+
+        async applyAll() {
+            if (!confirm('确定要应用所有分类变更吗？此操作不可撤销。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/batch-category/task/apply', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        scope: 'all'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.showAlert('正在应用分类变更...', 'info');
+                    this.startPolling();
+                } else {
+                    this.showAlert(data.message || '应用失败', 'danger');
+                }
+            } catch (error) {
+                console.error('应用失败:', error);
+                this.showAlert('应用失败', 'danger');
+            }
+        }
+
+        async applyAllFromModal() {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('resultsModal'));
+            modal.hide();
+
+            await this.applyAll();
+        }
+
+        async clearTask() {
+            if (!confirm('确定要清理所有任务结果吗？此操作将删除所有数据。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/batch-category/task', {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.showAlert('任务结果已清理', 'success');
+                    this.resetUI();
+                } else {
+                    this.showAlert(data.message || '清理失败', 'danger');
+                }
+            } catch (error) {
+                console.error('清理失败:', error);
+                this.showAlert('清理失败', 'danger');
+            }
+        }
+
+        async viewSummary() {
+            try {
+                const response = await fetch('/api/batch-category/task/results/summary');
+                const data = await response.json();
+
+                if (data.success) {
+                    this.showSummaryModal(data.data);
+                } else {
+                    this.showAlert(data.message || '获取统计失败', 'danger');
+                }
+            } catch (error) {
+                console.error('获取统计失败:', error);
+                this.showAlert('获取统计失败', 'danger');
+            }
+        }
+
+        async continueRecognition() {
+            if (!confirm('确定要继续识别剩余商品吗？')) {
+                return;
+            }
+
+            const batchSize = parseInt(document.getElementById('batchSize').value);
+
+            try {
+                const response = await fetch('/api/batch-category/task/continue', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        batch_size: batchSize
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.showAlert('继续识别任务已启动', 'success');
+                    this.startPolling();
+                } else {
+                    this.showAlert(data.message || '启动继续识别失败', 'danger');
+                }
+            } catch (error) {
+                console.error('启动继续识别失败:', error);
+                this.showAlert('启动继续识别失败', 'danger');
+            }
+        }
+
+        async viewCurrentResults() {
+            try {
+                const response = await fetch('/api/batch-category/task/results/available');
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.data.has_results) {
+                        // 获取所有当前可用的结果
+                        const resultsResponse = await fetch('/api/batch-category/task/results?all=true');
+                        const resultsData = await resultsResponse.json();
+
+                        if (resultsData.success) {
+                            // 显示可用的结果，使用现有的结果模态框
+                            const modal = new bootstrap.Modal(document.getElementById('resultsModal'));
+                            modal.show();
+
+                            // 渲染当前可用的结果
+                            this.renderResults(resultsData.data);
+
+                            // 更新模态框标题以反映这是当前结果
+                            const modalTitle = document.querySelector('#resultsModal .modal-title');
+                            if (modalTitle) {
+                                modalTitle.textContent = `当前结果 (${resultsData.data.length} 项)`;
+                            }
+
+                            // 对于当前结果，不显示分页（因为是所有可用结果）
+                            document.getElementById('resultsPagination').style.display = 'none';
+                            document.getElementById('resultsLoading').style.display = 'none';
+                        } else {
+                            this.showAlert('获取结果数据失败', 'danger');
+                        }
+                    } else {
+                        this.showAlert('当前任务还没有已完成的结果', 'info');
+                    }
+                } else {
+                    this.showAlert(data.message || '获取当前结果失败', 'danger');
+                }
+            } catch (error) {
+                console.error('获取当前结果失败:', error);
+                this.showAlert('获取当前结果失败', 'danger');
+            }
+        }
+
+        async restartTask() {
+            if (!confirm('确定要重新开始任务吗？这将清空所有现有结果。')) {
+                return;
+            }
+
+            const batchSize = parseInt(document.getElementById('batchSize').value);
+
+            try {
+                const response = await fetch('/api/batch-category/task/restart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        batch_size: batchSize
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.showAlert('任务已重新开始', 'success');
+                    this.startPolling();
+                } else {
+                    this.showAlert(data.message || '重新开始任务失败', 'danger');
+                }
+            } catch (error) {
+                console.error('重新开始任务失败:', error);
+                this.showAlert('重新开始任务失败', 'danger');
+            }
+        }
+
+        async applySelected() {
+            const selectedItems = this.getSelectedItems();
+
+            if (selectedItems.length === 0) {
+                this.showAlert('请先选择要应用的商品', 'warning');
+                return;
+            }
+
+            if (!confirm(`确定要应用选中的 ${selectedItems.length} 个商品的分类变更吗？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/batch-category/task/apply/partial', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        item_ids: selectedItems
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.showAlert(data.message, 'success');
+                    // 重新加载当前批次结果
+                    await this.loadResults(this.currentBatchIndex);
+                } else {
+                    this.showAlert(data.message || '应用选中项失败', 'danger');
+                }
+            } catch (error) {
+                console.error('应用选中项失败:', error);
+                this.showAlert('应用选中项失败', 'danger');
+            }
+        }
+
+        getSelectedItems() {
+            const checkboxes = document.querySelectorAll('input[name="resultCheckbox"]:checked');
+            return Array.from(checkboxes).map(cb => parseInt(cb.dataset.itemId));
+        }
+
+        toggleSelectAll(checked) {
+            const checkboxes = document.querySelectorAll('input[name="resultCheckbox"]');
+            checkboxes.forEach(cb => cb.checked = checked);
+        }
+
+        showSummaryModal(summary) {
+            const modalHtml = `
+            <div class="modal fade" id="summaryModal" tabindex="-1">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-chart-bar me-2"></i>分类统计报告
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <div class="stat-number text-primary">${summary.total_changes}</div>
+                                        <div class="stat-label">总变更数</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <div class="stat-number text-success">${summary.applied_changes}</div>
+                                        <div class="stat-label">已应用</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <div class="stat-number text-warning">${summary.pending_changes}</div>
+                                        <div class="stat-label">待应用</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card">
+                                        <div class="stat-number text-info">${summary.success_rate.toFixed(1)}%</div>
+                                        <div class="stat-label">成功率</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6>主要分类变更</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>分类变更</th>
+                                            <th>变更数量</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${summary.category_changes.map(([change, count]) =>
+                `<tr><td>${change}</td><td><span class="badge bg-primary">${count}</span></td></tr>`
+            ).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            // 移除已存在的模态框
+            const existingModal = document.getElementById('summaryModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // 添加新模态框
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('summaryModal'));
+            modal.show();
+        }
+
+        async viewResults() {
+            const modal = new bootstrap.Modal(document.getElementById('resultsModal'));
+            modal.show();
+
+            await this.loadAllResults();
+        }
+
+        async viewCurrentResults() {
+            const modal = new bootstrap.Modal(document.getElementById('resultsModal'));
+            modal.show();
+
+            await this.loadAllResults();
+        }
+
+        async loadAllResults() {
+            const loadingEl = document.getElementById('resultsLoading');
+            const tableEl = document.getElementById('resultsTableBody');
+            const resultsInfo = document.getElementById('resultsInfo');
+
+            loadingEl.style.display = 'block';
+            tableEl.innerHTML = '';
+            if (resultsInfo) {
+                resultsInfo.style.display = 'none';
+            }
+
+            try {
+                // 获取所有结果
+                const response = await fetch('/api/batch-category/task/results');
+                const data = await response.json();
+
+                if (data.success) {
+                    this.renderResults(data.data);
+                    // 显示结果统计
+                    if (resultsInfo) {
+                        resultsInfo.innerHTML = `共 ${data.data.length} 个结果`;
+                        resultsInfo.style.display = 'block';
+                    }
+                } else {
+                    this.showAlert(data.message || '加载结果失败', 'danger');
+                }
+            } catch (error) {
+                console.error('加载结果失败:', error);
+                this.showAlert('加载结果失败', 'danger');
+            } finally {
+                loadingEl.style.display = 'none';
+            }
+        }
+
+        async loadResults(batchIndex) {
+            // 保留此方法以兼容现有调用，但重定向到loadAllResults
+            await this.loadAllResults();
+        }
+
+        renderResults(results) {
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = '';
+
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                <td>
+                    ${!result.is_applied
+                        ? `<input type="checkbox" name="resultCheckbox" class="form-check-input" data-item-id="${result.item_id}">`
+                        : ''
+                    }
+                </td>
+                <td>${result.item_name}</td>
+                <td><span class="badge bg-secondary">${result.old_category}</span></td>
+                <td><span class="badge bg-primary">${result.new_category}</span></td>
+                <td class="small">${result.reason}</td>
+                <td>
+                    ${result.is_applied
+                        ? '<span class="badge bg-success">已应用</span>'
+                        : '<span class="badge bg-warning">待应用</span>'
+                    }
+                </td>
+            `;
+                tbody.appendChild(row);
+            });
+
+            // 重置全选复选框状态
+            document.getElementById('selectAllCheckbox').checked = false;
+        }
+
+        startPolling() {
+            if (this.isPolling) return;
+
+            this.isPolling = true;
+            this.pollInterval = setInterval(() => {
+                this.loadTaskStatus();
+            }, 2000);
+        }
+
+        stopPolling() {
+            if (this.pollInterval) {
+                clearInterval(this.pollInterval);
+                this.pollInterval = null;
+            }
+            this.isPolling = false;
+        }
+
+        updateUI(taskData) {
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            const statusDescription = document.getElementById('statusDescription');
+
+            // 更新状态指示器
+            statusIndicator.className = `status-indicator status-${taskData.status.toLowerCase()}`;
+
+            // 更新状态文本
+            const statusTexts = {
+                'IDLE': '就绪',
+                'RUNNING': '处理中',
+                'COMPLETED': '已完成',
+                'FAILED': '失败',
+                'STOPPED': '已停止',
+                'APPLYING': '应用中'
+            };
+
+            statusText.textContent = statusTexts[taskData.status] || taskData.status;
+
+            // 更新描述
+            const descriptions = {
+                'IDLE': '准备开始批量分类重识别任务',
+                'RUNNING': `正在处理第 ${taskData.current_batch_index + 1} 批，共 ${taskData.total_batches} 批`,
+                'COMPLETED': `任务已完成，处理了 ${taskData.total_items} 个商品`,
+                'FAILED': `任务失败：${taskData.error_message || '未知错误'}`,
+                'STOPPED': '任务已被用户停止',
+                'APPLYING': '正在应用分类变更到数据库'
+            };
+
+            statusDescription.textContent = descriptions[taskData.status] || '';
+
+            // 更新进度
+            this.updateProgress(taskData);
+
+            // 更新统计
+            this.updateStats(taskData);
+
+            // 更新按钮状态
+            this.updateButtons(taskData);
+
+            // 存储批次信息
+            this.totalBatches = taskData.total_batches;
+        }
+
+        updateProgress(taskData) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+
+            if (taskData.status === 'RUNNING' || taskData.status === 'APPLYING') {
+                progressContainer.style.display = 'block';
+
+                const percentage = taskData.total_items > 0
+                    ? Math.round((taskData.processed_items / taskData.total_items) * 100)
+                    : 0;
+
+                progressBar.style.width = `${percentage}%`;
+                progressText.textContent = `${taskData.processed_items} / ${taskData.total_items}`;
+            } else if (taskData.status === 'COMPLETED') {
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '100%';
+                progressText.textContent = `${taskData.total_items} / ${taskData.total_items}`;
+            } else {
+                progressContainer.style.display = 'none';
+            }
+        }
+
+        updateStats(taskData) {
+            const statsContainer = document.getElementById('statsContainer');
+
+            if (taskData.total_items > 0) {
+                statsContainer.style.display = 'grid';
+
+                document.getElementById('totalItems').textContent = taskData.total_items;
+                document.getElementById('successCount').textContent = taskData.success_count;
+                document.getElementById('skippedCount').textContent = taskData.skipped_count;
+                document.getElementById('failedCount').textContent = taskData.failed_count;
+
+                // 更新模态框统计
+                document.getElementById('modalSuccessCount').textContent = taskData.success_count;
+                document.getElementById('modalAppliedCount').textContent = taskData.applied_count;
+                document.getElementById('modalSkippedCount').textContent = taskData.skipped_count;
+                document.getElementById('modalFailedCount').textContent = taskData.failed_count;
+            } else {
+                statsContainer.style.display = 'none';
+            }
+        }
+
+        updateButtons(taskData) {
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const viewResultsBtn = document.getElementById('viewResultsBtn');
+            const viewCurrentResultsBtn = document.getElementById('viewCurrentResultsBtn');
+            const viewSummaryBtn = document.getElementById('viewSummaryBtn');
+            const continueBtn = document.getElementById('continueBtn');
+            const restartBtn = document.getElementById('restartBtn');
+            const applyAllBtn = document.getElementById('applyAllBtn');
+            const clearBtn = document.getElementById('clearBtn');
+
+            // 重置所有按钮
+            [startBtn, stopBtn, viewResultsBtn, viewCurrentResultsBtn, viewSummaryBtn, continueBtn, restartBtn, applyAllBtn, clearBtn].forEach(btn => {
+                btn.style.display = 'none';
+            });
+
+            switch (taskData.status) {
+                case 'IDLE':
+                    startBtn.style.display = 'inline-block';
+                    break;
+
+                case 'RUNNING':
+                    stopBtn.style.display = 'inline-block';
+                    // 如果有部分结果可查看，显示查看当前结果按钮
+                    if (taskData.success_count > 0) {
+                        viewCurrentResultsBtn.style.display = 'inline-block';
+                    }
+                    break;
+
+                case 'APPLYING':
+                    // 应用中，显示停止按钮
+                    stopBtn.style.display = 'inline-block';
+                    break;
+
+                case 'COMPLETED':
+                    restartBtn.style.display = 'inline-block';
+                    if (taskData.results_ready) {
+                        viewResultsBtn.style.display = 'inline-block';
+                        viewSummaryBtn.style.display = 'inline-block';
+                        continueBtn.style.display = 'inline-block';
+                        if (taskData.success_count > taskData.applied_count) {
+                            applyAllBtn.style.display = 'inline-block';
+                        }
+                    }
+                    clearBtn.style.display = 'inline-block';
+                    break;
+
+                case 'FAILED':
+                case 'STOPPED':
+                    restartBtn.style.display = 'inline-block';
+                    if (taskData.results_ready) {
+                        viewResultsBtn.style.display = 'inline-block';
+                        viewSummaryBtn.style.display = 'inline-block';
+                        continueBtn.style.display = 'inline-block';
+                        // 如果有部分结果，也显示查看当前结果按钮
+                        if (taskData.success_count > 0) {
+                            viewCurrentResultsBtn.style.display = 'inline-block';
+                        }
+                    }
+                    clearBtn.style.display = 'inline-block';
+                    break;
+            }
+
+            // 如果任务正在运行，禁用表单
+            const formElements = document.querySelectorAll('#batchSize');
+            formElements.forEach(el => {
+                el.disabled = (taskData.status === 'RUNNING' || taskData.status === 'APPLYING');
+            });
+        }
+
+        resetUI() {
+            // 重置到初始状态
+            const initialData = {
+                status: 'IDLE',
+                total_items: 0,
+                processed_items: 0,
+                total_batches: 0,
+                current_batch_index: 0,
+                success_count: 0,
+                skipped_count: 0,
+                failed_count: 0,
+                applied_count: 0,
+                results_ready: false,
+                error_message: null
+            };
+
+            this.updateUI(initialData);
+            this.stopPolling();
+        }
+
+        showAlert(message, type = 'info') {
+            // 创建 Bootstrap 警告框
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+            // 插入到容器顶部
+            const container = document.querySelector('.container-fluid');
+            container.insertBefore(alertDiv, container.firstChild);
+
+            // 自动移除
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+    }
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', () => {
+        new BatchCategoryManager();
+    });
+</script>
+{% endblock %}

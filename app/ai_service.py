@@ -113,8 +113,8 @@ class AIService:
         # 格式化分类列表
         categories_text = self._format_categories_for_prompt(category_structure)
 
-        # 替换模板中的分类占位符
-        return prompt_template.format(categories=categories_text)
+        # 安全地替换模板中的分类占位符，避免format()的转义问题
+        return prompt_template.replace("{categories}", categories_text)
 
     def recognize_receipt(self, text_description=None, image_path=None):
         """识别小票内容
@@ -194,3 +194,146 @@ class AIService:
         except Exception as e:
             current_app.logger.error(f"OpenAI API call failed: {e}")
             return None
+
+    def _build_batch_category_prompt(self, items: list):
+        """构建批量分类的提示词"""
+        from .settings_service import SettingsService
+
+        category_structure = self._get_category_structure_with_ids()
+
+        # 获取设定中的批量分类prompt模板
+        settings = SettingsService.get_settings()
+        prompt_template = settings.get("category_prompt", "")
+
+        # 格式化分类列表
+        categories_text = self._format_categories_for_prompt(category_structure)
+
+        # 构建商品列表文本
+        items_text = ""
+        for _, item in enumerate(items, 1):
+            chinese_name = item.get("chinese_name", "").strip()
+            japanese_name = item.get("japanese_name", "").strip()
+
+            item_info = f"ID:{item['id']} - {chinese_name}"
+            if japanese_name and japanese_name != chinese_name:
+                item_info += f" ({japanese_name})"
+            items_text += item_info + "\n"
+
+        # 安全地替换模板中的占位符，避免format()的转义问题
+        full_prompt = prompt_template
+        full_prompt = full_prompt.replace("{categories}", categories_text)
+        full_prompt = full_prompt.replace("{items}", items_text.strip())
+
+        return full_prompt
+
+    def categorize_items_batch(self, items: list) -> dict:
+        """批量对多个商品进行分类
+
+        Args:
+            items: 商品列表，每个商品包含 {'id': int, 'chinese_name': str, 'japanese_name': str}
+
+        Returns:
+            dict: 包含成功标志和分类结果列表
+        """
+        try:
+            client = self._get_client()
+
+            # 构建完整的提示词
+            prompt = self._build_batch_category_prompt(items)
+
+            response = client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=self.temperature,
+            )
+
+            result_text = response.choices[0].message.content
+            print("AI Batch Categorization Response:", result_text)
+            if not result_text:
+                current_app.logger.warning("AI返回了空响应")
+                return {"success": False, "error": "AI返回了空响应"}
+
+            result_text = result_text.strip()
+
+            # 尝试解析JSON响应
+            try:
+                # 清理可能的markdown代码块
+                cleaned_text = result_text.strip()
+                if cleaned_text.startswith("```json"):
+                    cleaned_text = cleaned_text[7:]
+                if cleaned_text.endswith("```"):
+                    cleaned_text = cleaned_text[:-3]
+                cleaned_text = cleaned_text.strip()
+
+                result = json.loads(cleaned_text)
+
+                results = []
+                # 检查是否有results字段
+                if "results" in result:
+                    results = result.get("results", [])
+
+                # 验证结果完整性和格式
+                valid_results = []
+                for item_result in results:
+                    if not isinstance(item_result, dict):
+                        continue
+
+                    item_id = item_result.get("item_id")
+                    category_id = item_result.get("category_id")
+
+                    if item_id is None or category_id is None:
+                        current_app.logger.warning(f"结果格式不完整：{item_result}")
+                        continue
+
+                    # 确保ID是整数
+                    try:
+                        item_id = int(item_id)
+                        category_id = int(category_id)
+                    except (ValueError, TypeError):
+                        current_app.logger.warning(
+                            f"ID格式错误：item_id={item_id}, category_id={category_id}"
+                        )
+                        continue
+
+                    # 如果没有category_name，尝试从数据库查询
+                    category_name = item_result.get("category_name", "")
+                    if not category_name:
+                        try:
+                            from .category_models import Category
+
+                            category = Category.query.get(category_id)
+                            category_name = (
+                                category.name
+                                if category
+                                else f"未知分类({category_id})"
+                            )
+                        except Exception:
+                            category_name = f"分类ID:{category_id}"
+
+                    valid_results.append(
+                        {
+                            "item_id": item_id,
+                            "category_id": category_id,
+                            "category_name": category_name,
+                            "reason": item_result.get("reason", ""),
+                        }
+                    )
+
+                # 验证结果完整性
+                if len(valid_results) != len(items):
+                    current_app.logger.warning(
+                        f"AI返回的有效结果数量不匹配：期望{len(items)}，实际{len(valid_results)}"
+                    )
+
+                return {"success": True, "results": valid_results}
+            except json.JSONDecodeError:
+                current_app.logger.warning(f"AI返回的不是有效JSON: {result_text}")
+                return {
+                    "success": False,
+                    "error": "AI返回格式错误",
+                    "raw_response": result_text,
+                }
+
+        except Exception as e:
+            current_app.logger.error(f"AI批量分类失败: {e}")
+            return {"success": False, "error": str(e)}

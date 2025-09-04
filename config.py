@@ -25,7 +25,7 @@ class ConfigManager:
             "temperature": 0.1,
             # AI Prompt 设定
             "receipt_prompt": cls.get_default_prompt(),
-            "category_prompt": "请根据商品名称判断其所属的分类。",
+            "category_prompt": cls.get_default_batch_category_prompt(),
             # 系统设定
             "image_compression_enabled": True,
             "image_compression_quality": 80,
@@ -48,6 +48,16 @@ class ConfigManager:
                     for key, value in default_settings.items():
                         if key not in settings:
                             settings[key] = value
+
+                    # 对于prompt相关字段，如果为空则使用默认值
+                    prompt_fields = [
+                        "receipt_prompt",
+                        "category_prompt",
+                    ]
+                    for field in prompt_fields:
+                        if field in settings and not settings[field].strip():
+                            settings[field] = default_settings[field]
+
                     return settings
             except Exception:
                 pass
@@ -66,6 +76,44 @@ class ConfigManager:
             return True, "设定保存成功"
         except Exception as e:
             return False, f"保存设定失败: {str(e)}"
+
+    @classmethod
+    def get_default_batch_category_prompt(cls):
+        """获取默认的批量分类提示词"""
+        return """你是一个专业的商品分类专家。请根据商品的中文名称和日文名称，为每个商品选择最合适的三级分类。
+
+分类原则：
+1. 优先根据商品的主要功能和用途进行分类
+2. 如果商品名称不够明确，可以根据常见的商品特征进行合理推测
+3. 选择最具体、最准确的三级分类
+4. 每个商品都必须分配一个分类，不能遗漏
+
+可用分类列表：
+{categories}
+
+待分类商品：
+{items}
+
+请以JSON格式返回分类结果，格式如下（仅返回JSON，不要包含markdown代码块或其他文字）：
+{{
+  "results": [
+    {{
+      "item_id": 商品ID,
+      "category_id": 分类ID,
+      "category_name": "分类名称",
+      "reason": "选择此分类的原因"
+    }}
+  ]
+}}
+
+要求：
+1. 每个商品都必须分配一个分类
+2. category_id必须是从上方分类列表中选择的有效ID
+3. reason要简短说明选择该分类的理由
+4. item_id和category_id必须是数字类型
+5. 返回的JSON必须格式正确且完整
+
+请仔细分析每个商品的特征，选择最合适的分类ID。"""
 
     @classmethod
     def get_default_prompt(cls):

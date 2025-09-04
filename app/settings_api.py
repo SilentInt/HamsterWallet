@@ -128,3 +128,13 @@ def get_default_prompt():
         return jsonify({"success": True, "prompt": default_prompt})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+@settings_bp.route("/settings/default-batch-category-prompt", methods=["GET"])
+def get_default_batch_category_prompt():
+    """获取默认的批量分类prompt"""
+    try:
+        default_prompt = SettingsService.get_default_batch_category_prompt()
+        return jsonify({"success": True, "prompt": default_prompt})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
