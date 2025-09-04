@@ -738,6 +738,57 @@
         return options;
     }
 
+    // 从过滤后的数据生成二级分类选项
+    function generateLevel2OptionsFromData(filteredTreeData, level1Id) {
+        if (!filteredTreeData || !level1Id) return '';
+
+        const level1Category = filteredTreeData.find(cat => cat.id == level1Id);
+        if (!level1Category || !level1Category.children) return '';
+
+        let options = '';
+        level1Category.children.forEach(category => {
+            options += `<option value="${category.id}">${category.name}</option>`;
+        });
+        return options;
+    }
+
+    // 从过滤后的数据生成一级分类选项
+    function generateLevel1OptionsFromData(filteredTreeData) {
+        if (!filteredTreeData || filteredTreeData.length === 0) {
+            return '';
+        }
+
+        let options = '';
+        filteredTreeData.forEach(category => {
+            options += `<option value="${category.id}">${category.name}</option>`;
+        });
+        return options;
+    }
+
+    // 检查分类A是否是分类B的后代（避免循环引用）
+    function isDescendantOf(categoryAId, categoryBId, treeData) {
+        // 在树数据中递归查找categoryAId是否在categoryBId的子树中
+        function searchInChildren(parentCategory, targetId) {
+            if (!parentCategory.children) return false;
+
+            for (const child of parentCategory.children) {
+                if (child.id == targetId) {
+                    return true;
+                }
+                if (searchInChildren(child, targetId)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // 找到categoryBId对应的分类
+        const parentCategory = treeData.find(cat => cat.id == categoryBId);
+        if (!parentCategory) return false;
+
+        return searchInChildren(parentCategory, categoryAId);
+    }
+
     // 设置级联选择器事件监听器
     function setupCascadeListeners(prefix, targetLevel = null) {
         console.log(`开始设置级联选择器监听器，前缀: ${prefix}, 目标级别: ${targetLevel}`);
@@ -806,14 +857,17 @@
                         console.log(`一级分类有子分类，等待选择二级分类`);
                     }
                 } else {
-                    // 编辑模式：按原逻辑处理
+                    // 编辑模式：设置选中的一级分类为父分类，但如果有二级分类选项，则等待用户选择
                     const level1Category = treeData.find(cat => cat.id == level1Id);
-                    if (!level1Category.children || level1Category.children.length === 0) {
+                    if (level1Category && level1Category.children && level1Category.children.length > 0) {
+                        // 有二级分类，暂时不设置父分类，等待用户选择二级分类
+                        // 但为了用户体验，我们可以预设为一级分类，用户可以进一步选择二级分类来覆盖
                         parentIdInput.value = level1Id;
-                        console.log(`设置父分类ID为一级分类: ${level1Id}`);
+                        console.log(`编辑模式：预设父分类ID为一级分类: ${level1Id}，用户可进一步选择二级分类`);
                     } else {
-                        parentIdInput.value = '';
-                        console.log(`一级分类有子分类，等待选择二级分类`);
+                        // 没有二级分类，直接设置为父分类
+                        parentIdInput.value = level1Id;
+                        console.log(`编辑模式：设置父分类ID为一级分类: ${level1Id}`);
                     }
                 }
             } else {
@@ -821,7 +875,7 @@
                 console.log(`清空父分类ID`);
             }
 
-            console.log(`当前隐藏字段值: ${parentIdInput.value}`);
+            console.log(`级联选择器更新后的隐藏字段值: ${parentIdInput.value}, 字段ID: ${parentIdInput.id}`);
         };
 
         level1Select.addEventListener('change', level1ChangeHandler);
@@ -831,7 +885,7 @@
             const level2Id = e.target.value;
             const level1Id = level1Select.value;
 
-            console.log(`二级分类选择: ${level2Id}, 一级分类: ${level1Id}`);
+            console.log(`二级分类选择变化: ${level2Id}, 一级分类: ${level1Id}`);
 
             if (level2Id) {
                 parentIdInput.value = level2Id;
@@ -848,7 +902,7 @@
                 }
             }
 
-            console.log(`当前隐藏字段值: ${parentIdInput.value}`);
+            console.log(`二级分类选择器更新后的隐藏字段值: ${parentIdInput.value}, 字段ID: ${parentIdInput.id}`);
         };
 
         level2Select.addEventListener('change', level2ChangeHandler);
@@ -858,6 +912,134 @@
         level2Select._cascadeHandler = level2ChangeHandler;
 
         console.log(`级联选择器监听器设置完成`);
+    }
+
+    // 设置级联选择器事件监听器（使用过滤后的数据）
+    function setupCascadeListenersWithFilteredData(prefix, targetLevel = null, filteredTreeData = null) {
+        console.log(`开始设置级联选择器监听器（过滤数据），前缀: ${prefix}, 目标级别: ${targetLevel}`);
+
+        const level1Select = document.getElementById(`${prefix}Level1`);
+        const level2Select = document.getElementById(`${prefix}Level2`);
+        const parentIdInput = document.getElementById(`${prefix}CategoryId`);
+
+        console.log(`查找元素:`, {
+            level1Select: level1Select ? '找到' : '未找到',
+            level2Select: level2Select ? '找到' : '未找到',
+            parentIdInput: parentIdInput ? '找到' : '未找到',
+            level1Id: `${prefix}Level1`,
+            level2Id: `${prefix}Level2`,
+            parentInputId: `${prefix}CategoryId`
+        });
+
+        if (!level1Select || !level2Select || !parentIdInput) {
+            console.error(`级联选择器元素未找到: ${prefix}Level1, ${prefix}Level2, ${prefix}CategoryId`);
+            return;
+        }
+
+        // 移除已存在的事件监听器（防止重复添加）
+        if (level1Select._cascadeHandler) {
+            level1Select.removeEventListener('change', level1Select._cascadeHandler);
+        }
+        if (level2Select._cascadeHandler) {
+            level2Select.removeEventListener('change', level2Select._cascadeHandler);
+        }
+
+        // 一级分类变化监听器
+        const level1ChangeHandler = async (e) => {
+            const level1Id = e.target.value;
+
+            console.log(`一级分类选择: ${level1Id}, 目标创建级别: ${targetLevel}`);
+
+            // 重置二级分类
+            level2Select.innerHTML = '<option value="">请选择二级分类</option>';
+            level2Select.disabled = true;
+
+            if (level1Id) {
+                // 使用过滤后的数据或加载原始数据
+                const treeData = filteredTreeData || await loadCategoryTreeData();
+                const level2Options = filteredTreeData ?
+                    generateLevel2OptionsFromData(filteredTreeData, level1Id) :
+                    generateLevel2Options(treeData, level1Id);
+
+                if (level2Options) {
+                    level2Select.innerHTML = '<option value="">请选择二级分类</option>' + level2Options;
+                    level2Select.disabled = false;
+                    console.log(`已加载二级分类选项`);
+                }
+
+                // 根据目标创建级别决定逻辑
+                if (targetLevel === 2) {
+                    // 创建二级分类：直接设置一级分类为父分类
+                    parentIdInput.value = level1Id;
+                    console.log(`创建二级分类：设置父分类ID为一级分类: ${level1Id}`);
+                } else if (targetLevel === 3) {
+                    // 创建三级分类：需要选择二级分类
+                    const level1Category = treeData.find(cat => cat.id == level1Id);
+                    if (!level1Category.children || level1Category.children.length === 0) {
+                        // 如果一级分类没有子分类，直接设置为父分类
+                        parentIdInput.value = level1Id;
+                        console.log(`一级分类无子分类，设置父分类ID为一级分类: ${level1Id}`);
+                    } else {
+                        // 等待选择二级分类
+                        parentIdInput.value = '';
+                        console.log(`一级分类有子分类，等待选择二级分类`);
+                    }
+                } else {
+                    // 编辑模式：设置选中的一级分类为父分类，但如果有二级分类选项，则等待用户选择
+                    const level1Category = treeData.find(cat => cat.id == level1Id);
+                    if (level1Category && level1Category.children && level1Category.children.length > 0) {
+                        // 有二级分类，暂时不设置父分类，等待用户选择二级分类
+                        // 但为了用户体验，我们可以预设为一级分类，用户可以进一步选择二级分类来覆盖
+                        parentIdInput.value = level1Id;
+                        console.log(`编辑模式：预设父分类ID为一级分类: ${level1Id}，用户可进一步选择二级分类`);
+                    } else {
+                        // 没有二级分类，直接设置为父分类
+                        parentIdInput.value = level1Id;
+                        console.log(`编辑模式：设置父分类ID为一级分类: ${level1Id}`);
+                    }
+                }
+            } else {
+                parentIdInput.value = '';
+                console.log(`清空父分类ID`);
+            }
+
+            console.log(`级联选择器更新后的隐藏字段值: ${parentIdInput.value}, 字段ID: ${parentIdInput.id}`);
+        };
+
+        level1Select.addEventListener('change', level1ChangeHandler);
+
+        // 二级分类变化监听器
+        const level2ChangeHandler = (e) => {
+            const level2Id = e.target.value;
+            const level1Id = level1Select.value;
+
+            console.log(`二级分类选择变化: ${level2Id}, 一级分类: ${level1Id}`);
+
+            if (level2Id) {
+                parentIdInput.value = level2Id;
+                console.log(`设置父分类ID为二级分类: ${level2Id}`);
+            } else {
+                // 如果清空二级分类选择
+                if (targetLevel === 2) {
+                    // 创建二级分类时，回退到一级分类
+                    parentIdInput.value = level1Id || '';
+                    console.log(`创建二级分类：回退到一级分类: ${level1Id}`);
+                } else {
+                    parentIdInput.value = level1Id || '';
+                    console.log(`设置父分类ID为一级分类: ${level1Id}`);
+                }
+            }
+
+            console.log(`二级分类选择器更新后的隐藏字段值: ${parentIdInput.value}, 字段ID: ${parentIdInput.id}`);
+        };
+
+        level2Select.addEventListener('change', level2ChangeHandler);
+
+        // 保存事件处理器引用以便后续清理
+        level1Select._cascadeHandler = level1ChangeHandler;
+        level2Select._cascadeHandler = level2ChangeHandler;
+
+        console.log(`级联选择器监听器设置完成（过滤数据）`);
     }
 
     // 根据parent_id设置级联选择器的值
@@ -1132,7 +1314,7 @@
         document.getElementById('editCategoryLevel').value = categoryLevel;
         document.getElementById('editCategoryName').value = categoryName;
 
-        // 处理父分类选择（二级和三级分类可以选择父分类）
+        // 处理父分类选择（所有分类都可以选择父分类进行层级调整）
         const parentGroup = document.getElementById('editParentCategoryGroup');
         const level1Group = document.getElementById('editLevel1Group');
         const level2Group = document.getElementById('editLevel2Group');
@@ -1140,49 +1322,74 @@
         const level2Select = document.getElementById('editParentLevel2');
         const parentCategoryIdInput = document.getElementById('editParentCategoryId');
 
+        // 总是显示父分类选择器
+        parentGroup.style.display = 'block';
+
+        // 加载分类树数据
+        const treeData = await loadCategoryTreeData();
+
         if (categoryLevel === 1) {
-            // 一级分类不能选择父分类
-            parentGroup.style.display = 'none';
-        } else {
-            // 显示父分类选择器
-            parentGroup.style.display = 'block';
+            // 一级分类，只显示一级分类选择（用于降级为二级分类）
+            level1Group.style.display = 'block';
+            level2Group.style.display = 'none';
 
-            // 加载分类树数据
-            const treeData = await loadCategoryTreeData();
+            // 过滤掉当前分类本身和其所有子分类，避免循环引用
+            const filteredTreeData = treeData.filter(cat => cat.id != categoryId && !isDescendantOf(cat.id, categoryId, treeData));
+            level1Select.innerHTML = '<option value="">保持为顶级分类</option>' + generateLevel1OptionsFromData(filteredTreeData);
+            level2Select.innerHTML = '<option value="">请选择二级分类</option>';
+            level2Select.disabled = true;
 
-            if (categoryLevel === 2) {
-                // 二级分类，只显示一级分类选择
-                level1Group.style.display = 'block';
-                level2Group.style.display = 'none';
-
-                level1Select.innerHTML = '<option value="">设为顶级分类</option>' + generateLevel1Options(treeData);
-                level2Select.innerHTML = '<option value="">请选择二级分类</option>';
-                level2Select.disabled = true;
-
-                // 设置当前父分类
-                if (categoryParent) {
-                    level1Select.value = categoryParent;
-                    parentCategoryIdInput.value = categoryParent;
-                }
-
-            } else if (categoryLevel === 3) {
-                // 三级分类，显示一级和二级分类选择
-                level1Group.style.display = 'block';
-                level2Group.style.display = 'block';
-
-                level1Select.innerHTML = '<option value="">设为顶级分类</option>' + generateLevel1Options(treeData);
-                level2Select.innerHTML = '<option value="">请选择二级分类</option>';
-                level2Select.disabled = true;
-
-                // 设置当前父分类
-                if (categoryParent) {
-                    await setCascadeFromParentId('editParent', categoryParent);
-                    parentCategoryIdInput.value = categoryParent;
-                }
+            // 设置当前父分类（一级分类通常没有父分类）
+            if (categoryParent) {
+                level1Select.value = categoryParent;
+                parentCategoryIdInput.value = categoryParent;
             }
 
-            // 设置事件监听器
-            setupCascadeListeners('editParent');
+        } else if (categoryLevel === 2) {
+            // 二级分类，显示一级和二级分类选择（允许降级或升级）
+            level1Group.style.display = 'block';
+            level2Group.style.display = 'block';
+
+            // 过滤掉当前分类本身和其所有子分类，避免循环引用
+            const filteredTreeData = treeData.filter(cat => cat.id != categoryId && !isDescendantOf(cat.id, categoryId, treeData));
+            level1Select.innerHTML = '<option value="">设为顶级分类</option>' + generateLevel1OptionsFromData(filteredTreeData);
+            level2Select.innerHTML = '<option value="">请选择二级分类</option>';
+            level2Select.disabled = true;
+
+            // 设置当前父分类
+            if (categoryParent) {
+                await setCascadeFromParentId('editParent', categoryParent);
+                parentCategoryIdInput.value = categoryParent;
+            }
+
+        } else if (categoryLevel === 3) {
+            // 三级分类，显示一级和二级分类选择
+            level1Group.style.display = 'block';
+            level2Group.style.display = 'block';
+
+            // 过滤掉当前分类本身和其所有子分类，避免循环引用
+            const filteredTreeData = treeData.filter(cat => cat.id != categoryId && !isDescendantOf(cat.id, categoryId, treeData));
+            level1Select.innerHTML = '<option value="">设为顶级分类</option>' + generateLevel1OptionsFromData(filteredTreeData);
+            level2Select.innerHTML = '<option value="">请选择二级分类</option>';
+            level2Select.disabled = true;
+
+            // 设置当前父分类
+            if (categoryParent) {
+                await setCascadeFromParentId('editParent', categoryParent);
+                parentCategoryIdInput.value = categoryParent;
+            }
+        }
+
+        // 设置事件监听器，传递过滤后的数据
+        const filteredTreeData = treeData.filter(cat => cat.id != categoryId && !isDescendantOf(cat.id, categoryId, treeData));
+        setupCascadeListenersWithFilteredData('editParent', null, filteredTreeData);
+
+        // 在设置事件监听器之后，确保父分类ID正确设置
+        if (categoryParent) {
+            parentCategoryIdInput.value = categoryParent;
+            console.log(`编辑分类：最终确保父分类ID设置为: ${categoryParent}`);
+        } else {
+            console.log(`编辑分类：当前分类没有父分类`);
         }
 
         // 显示模态框
@@ -1219,6 +1426,16 @@
         const categoryId = document.getElementById('editCategoryId').value;
         const categoryName = document.getElementById('editCategoryName').value;
         const parentId = document.getElementById('editParentCategoryId').value || null;
+
+        // 添加调试日志
+        console.log('编辑分类提交数据:', {
+            categoryId: categoryId,
+            categoryName: categoryName,
+            parentId: parentId,
+            parentIdElement: document.getElementById('editParentCategoryId'),
+            level1SelectValue: document.getElementById('editParentLevel1').value,
+            level2SelectValue: document.getElementById('editParentLevel2').value
+        });
 
         fetch(`/api/category/${categoryId}`, {
             method: 'PUT',
