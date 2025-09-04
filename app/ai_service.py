@@ -14,47 +14,53 @@ class AIService:
         # 移除硬编码的分类定义，改为从数据库动态获取
 
     def _get_category_structure_with_ids(self):
-        """获取精简的分类结构，供AI识别使用"""
+        """获取三级层级分类结构，供AI识别使用"""
         try:
             from .category_models import Category
 
             # 获取所有分类
             all_categories = Category.query.all()
             if not all_categories:
-                return []
+                return {}
 
-            # 构建精简的扁平化结构，只包含三级分类
-            level3_categories = [cat for cat in all_categories if cat.level == 3]
-
-            # 按一级分类分组
+            # 构建三级层级结构
             result = {}
-            for level3 in level3_categories:
-                # 获取二级分类
-                level2 = next(
-                    (cat for cat in all_categories if cat.id == level3.parent_id), None
-                )
-                if not level2:
-                    continue
 
-                # 获取一级分类
-                level1 = next(
-                    (cat for cat in all_categories if cat.id == level2.parent_id), None
-                )
-                if not level1:
-                    continue
+            # 获取所有一级分类
+            level1_categories = [cat for cat in all_categories if cat.level == 1]
 
-                # 按一级分类分组
-                if level1.name not in result:
-                    result[level1.name] = []
+            for level1 in level1_categories:
+                level1_data = {"name": level1.name, "children": {}}
 
-                # 添加三级分类信息，包含完整路径但格式简洁
-                result[level1.name].append(
-                    {
-                        "id": level3.id,
-                        "name": level3.name,
-                        "path": f"{level1.name} > {level2.name} > {level3.name}",
-                    }
-                )
+                # 获取该一级分类下的所有二级分类
+                level2_categories = [
+                    cat
+                    for cat in all_categories
+                    if cat.parent_id == level1.id and cat.level == 2
+                ]
+
+                for level2 in level2_categories:
+                    level2_data = {"name": level2.name, "children": []}
+
+                    # 获取该二级分类下的所有三级分类
+                    level3_categories = [
+                        cat
+                        for cat in all_categories
+                        if cat.parent_id == level2.id and cat.level == 3
+                    ]
+
+                    for level3 in level3_categories:
+                        level2_data["children"].append(
+                            {"id": level3.id, "name": level3.name}
+                        )
+
+                    # 只有当二级分类有三级子分类时才添加
+                    if level2_data["children"]:
+                        level1_data["children"][level2.name] = level2_data
+
+                # 只有当一级分类有二级子分类时才添加
+                if level1_data["children"]:
+                    result[level1.name] = level1_data
 
             return result
         except Exception as e:
@@ -81,17 +87,34 @@ class AIService:
             return base64.b64encode(image_file.read()).decode("utf-8")
 
     def _format_categories_for_prompt(self, category_structure):
-        """将分类结构格式化为紧凑的提示词格式"""
+        """将分类结构格式化为三级层级提示词格式
+        格式：
+        # 一级分类名称
+        ## 二级分类名称
+        三级分类名称[ID] 三级分类名称[ID] ...
+        """
         if not category_structure:
             return "暂无分类定义"
 
         formatted_lines = []
-        for level1_name, categories in category_structure.items():
-            formatted_lines.append(f"\n【{level1_name}】")
-            for cat in categories:
-                formatted_lines.append(f"  {cat['name']} (ID:{cat['id']})")
 
-        return "".join(formatted_lines)
+        for level1_name, level1_data in category_structure.items():
+            # 添加一级分类 (# 标题)
+            formatted_lines.append(f"# {level1_name}")
+
+            for level2_name, level2_data in level1_data["children"].items():
+                # 添加二级分类 (## 标题)
+                formatted_lines.append(f"## {level2_name}")
+
+                # 添加三级分类，格式：名称[ID] 名称[ID] ...
+                level3_items = []
+                for level3 in level2_data["children"]:
+                    level3_items.append(f"{level3['name']}[{level3['id']}]")
+
+                if level3_items:
+                    formatted_lines.append(" ".join(level3_items))
+
+        return "\n".join(formatted_lines)
 
     def _build_prompt(self):
         """构建AI识别小票的精简提示词"""

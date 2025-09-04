@@ -283,10 +283,6 @@
                     <button type="button" class="btn btn-success" id="viewResultsBtn" style="display: none;">
                         <i class="fas fa-eye me-2"></i>查看结果
                     </button>
-                    <button type="button" class="btn btn-outline-success" id="viewCurrentResultsBtn"
-                        style="display: none;">
-                        <i class="fas fa-eye me-2"></i>查看当前结果
-                    </button>
                     <button type="button" class="btn btn-outline-primary" id="viewSummaryBtn" style="display: none;">
                         <i class="fas fa-chart-bar me-2"></i>统计报告
                     </button>
@@ -344,34 +340,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <!-- 结果统计 -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="stat-card">
-                            <div class="stat-number text-success" id="modalSuccessCount">0</div>
-                            <div class="stat-label">成功变更</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stat-card">
-                            <div class="stat-number text-info" id="modalAppliedCount">0</div>
-                            <div class="stat-label">已应用</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stat-card">
-                            <div class="stat-number text-warning" id="modalSkippedCount">0</div>
-                            <div class="stat-label">无需变更</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stat-card">
-                            <div class="stat-number text-danger" id="modalFailedCount">0</div>
-                            <div class="stat-label">处理失败</div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 结果表格 -->
                 <div class="table-responsive">
                     <table class="table table-hover results-table">
@@ -391,11 +359,6 @@
                             <!-- 结果行将在此处动态生成 -->
                         </tbody>
                     </table>
-                </div>
-
-                <!-- 结果信息 -->
-                <div class="text-center mb-3" id="resultsInfo" style="display: none;">
-                    <!-- 结果统计信息 -->
                 </div>
 
                 <!-- 加载中 -->
@@ -437,7 +400,6 @@
             document.getElementById('startBtn').addEventListener('click', () => this.startTask());
             document.getElementById('stopBtn').addEventListener('click', () => this.stopTask());
             document.getElementById('viewResultsBtn').addEventListener('click', () => this.viewResults());
-            document.getElementById('viewCurrentResultsBtn').addEventListener('click', () => this.viewCurrentResults());
             document.getElementById('viewSummaryBtn').addEventListener('click', () => this.viewSummary());
             document.getElementById('continueBtn').addEventListener('click', () => this.continueRecognition());
             document.getElementById('restartBtn').addEventListener('click', () => this.restartTask());
@@ -511,6 +473,8 @@
                 if (data.success) {
                     this.showAlert('任务已停止', 'warning');
                     this.stopPolling();
+                    // 立即更新UI状态
+                    await this.loadTaskStatus();
                 } else {
                     this.showAlert(data.message || '停止任务失败', 'danger');
                 }
@@ -629,49 +593,6 @@
             }
         }
 
-        async viewCurrentResults() {
-            try {
-                const response = await fetch('/api/batch-category/task/results/available');
-                const data = await response.json();
-
-                if (data.success) {
-                    if (data.data.has_results) {
-                        // 获取所有当前可用的结果
-                        const resultsResponse = await fetch('/api/batch-category/task/results?all=true');
-                        const resultsData = await resultsResponse.json();
-
-                        if (resultsData.success) {
-                            // 显示可用的结果，使用现有的结果模态框
-                            const modal = new bootstrap.Modal(document.getElementById('resultsModal'));
-                            modal.show();
-
-                            // 渲染当前可用的结果
-                            this.renderResults(resultsData.data);
-
-                            // 更新模态框标题以反映这是当前结果
-                            const modalTitle = document.querySelector('#resultsModal .modal-title');
-                            if (modalTitle) {
-                                modalTitle.textContent = `当前结果 (${resultsData.data.length} 项)`;
-                            }
-
-                            // 对于当前结果，不显示分页（因为是所有可用结果）
-                            document.getElementById('resultsPagination').style.display = 'none';
-                            document.getElementById('resultsLoading').style.display = 'none';
-                        } else {
-                            this.showAlert('获取结果数据失败', 'danger');
-                        }
-                    } else {
-                        this.showAlert('当前任务还没有已完成的结果', 'info');
-                    }
-                } else {
-                    this.showAlert(data.message || '获取当前结果失败', 'danger');
-                }
-            } catch (error) {
-                console.error('获取当前结果失败:', error);
-                this.showAlert('获取当前结果失败', 'danger');
-            }
-        }
-
         async restartTask() {
             if (!confirm('确定要重新开始任务吗？这将清空所有现有结果。')) {
                 return;
@@ -765,28 +686,22 @@
                         </div>
                         <div class="modal-body">
                             <div class="row mb-4">
-                                <div class="col-md-3">
+                                <div class="col-md-4">
                                     <div class="stat-card">
                                         <div class="stat-number text-primary">${summary.total_changes}</div>
-                                        <div class="stat-label">总变更数</div>
+                                        <div class="stat-label">需要变更</div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-4">
                                     <div class="stat-card">
                                         <div class="stat-number text-success">${summary.applied_changes}</div>
                                         <div class="stat-label">已应用</div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-4">
                                     <div class="stat-card">
                                         <div class="stat-number text-warning">${summary.pending_changes}</div>
                                         <div class="stat-label">待应用</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="stat-card">
-                                        <div class="stat-number text-info">${summary.success_rate.toFixed(1)}%</div>
-                                        <div class="stat-label">成功率</div>
                                     </div>
                                 </div>
                             </div>
@@ -837,23 +752,12 @@
             await this.loadAllResults();
         }
 
-        async viewCurrentResults() {
-            const modal = new bootstrap.Modal(document.getElementById('resultsModal'));
-            modal.show();
-
-            await this.loadAllResults();
-        }
-
         async loadAllResults() {
             const loadingEl = document.getElementById('resultsLoading');
             const tableEl = document.getElementById('resultsTableBody');
-            const resultsInfo = document.getElementById('resultsInfo');
 
             loadingEl.style.display = 'block';
             tableEl.innerHTML = '';
-            if (resultsInfo) {
-                resultsInfo.style.display = 'none';
-            }
 
             try {
                 // 获取所有结果
@@ -862,11 +766,6 @@
 
                 if (data.success) {
                     this.renderResults(data.data);
-                    // 显示结果统计
-                    if (resultsInfo) {
-                        resultsInfo.innerHTML = `共 ${data.data.length} 个结果`;
-                        resultsInfo.style.display = 'block';
-                    }
                 } else {
                     this.showAlert(data.message || '加载结果失败', 'danger');
                 }
@@ -1009,12 +908,6 @@
                 document.getElementById('successCount').textContent = taskData.success_count;
                 document.getElementById('skippedCount').textContent = taskData.skipped_count;
                 document.getElementById('failedCount').textContent = taskData.failed_count;
-
-                // 更新模态框统计
-                document.getElementById('modalSuccessCount').textContent = taskData.success_count;
-                document.getElementById('modalAppliedCount').textContent = taskData.applied_count;
-                document.getElementById('modalSkippedCount').textContent = taskData.skipped_count;
-                document.getElementById('modalFailedCount').textContent = taskData.failed_count;
             } else {
                 statsContainer.style.display = 'none';
             }
@@ -1024,7 +917,6 @@
             const startBtn = document.getElementById('startBtn');
             const stopBtn = document.getElementById('stopBtn');
             const viewResultsBtn = document.getElementById('viewResultsBtn');
-            const viewCurrentResultsBtn = document.getElementById('viewCurrentResultsBtn');
             const viewSummaryBtn = document.getElementById('viewSummaryBtn');
             const continueBtn = document.getElementById('continueBtn');
             const restartBtn = document.getElementById('restartBtn');
@@ -1032,7 +924,7 @@
             const clearBtn = document.getElementById('clearBtn');
 
             // 重置所有按钮
-            [startBtn, stopBtn, viewResultsBtn, viewCurrentResultsBtn, viewSummaryBtn, continueBtn, restartBtn, applyAllBtn, clearBtn].forEach(btn => {
+            [startBtn, stopBtn, viewResultsBtn, viewSummaryBtn, continueBtn, restartBtn, applyAllBtn, clearBtn].forEach(btn => {
                 btn.style.display = 'none';
             });
 
@@ -1043,9 +935,9 @@
 
                 case 'RUNNING':
                     stopBtn.style.display = 'inline-block';
-                    // 如果有部分结果可查看，显示查看当前结果按钮
+                    // 如果有部分结果可查看，显示查看结果按钮
                     if (taskData.success_count > 0) {
-                        viewCurrentResultsBtn.style.display = 'inline-block';
+                        viewResultsBtn.style.display = 'inline-block';
                     }
                     break;
 
@@ -1074,9 +966,11 @@
                         viewResultsBtn.style.display = 'inline-block';
                         viewSummaryBtn.style.display = 'inline-block';
                         continueBtn.style.display = 'inline-block';
-                        // 如果有部分结果，也显示查看当前结果按钮
+                        // 如果有结果，显示查看结果按钮
                         if (taskData.success_count > 0) {
-                            viewCurrentResultsBtn.style.display = 'inline-block';
+                            if (taskData.success_count > taskData.applied_count) {
+                                applyAllBtn.style.display = 'inline-block';
+                            }
                         }
                     }
                     clearBtn.style.display = 'inline-block';

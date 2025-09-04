@@ -8,7 +8,6 @@ import threading
 import time
 from datetime import datetime
 from sqlalchemy import text
-import logging
 from werkzeug.local import LocalProxy
 
 batch_category_bp = Blueprint(
@@ -87,6 +86,7 @@ def get_task_status():
                     "applied_count": current_task["applied_count"],
                     "results_ready": current_task["results_ready"],
                     "error_message": current_task["error_message"],
+                    "batch_size": current_task["batch_size"],
                 },
             }
         )
@@ -138,7 +138,7 @@ def start_task():
         return jsonify({"success": True, "message": "批量分类任务已启动"}), 202
 
     except Exception as e:
-        logging.error(f"启动批量任务失败: {str(e)}")
+        print(f"启动批量任务失败: {str(e)}")
         return jsonify({"success": False, "message": f"启动任务失败: {str(e)}"}), 500
 
 
@@ -167,7 +167,7 @@ def get_task_results():
             )
 
     except Exception as e:
-        logging.error(f"获取结果失败: {str(e)}")
+        print(f"获取结果失败: {str(e)}")
         return jsonify({"success": False, "message": f"获取结果失败: {str(e)}"}), 500
 
 
@@ -202,7 +202,7 @@ def get_available_results():
             )
 
     except Exception as e:
-        logging.error(f"获取可用结果失败: {str(e)}")
+        print(f"获取可用结果失败: {str(e)}")
         return (
             jsonify({"success": False, "message": f"获取可用结果失败: {str(e)}"}),
             500,
@@ -245,7 +245,7 @@ def restart_task():
         return jsonify({"success": True, "message": "任务已重新开始"}), 202
 
     except Exception as e:
-        logging.error(f"重新开始任务失败: {str(e)}")
+        print(f"重新开始任务失败: {str(e)}")
         return (
             jsonify({"success": False, "message": f"重新开始任务失败: {str(e)}"}),
             500,
@@ -307,7 +307,7 @@ def get_results_summary():
             return jsonify({"success": True, "data": summary})
 
     except Exception as e:
-        logging.error(f"获取统计失败: {str(e)}")
+        print(f"获取统计失败: {str(e)}")
         return jsonify({"success": False, "message": f"获取统计失败: {str(e)}"}), 500
 
 
@@ -348,7 +348,7 @@ def preview_results():
             )
 
     except Exception as e:
-        logging.error(f"预览结果失败: {str(e)}")
+        print(f"预览结果失败: {str(e)}")
         return jsonify({"success": False, "message": f"预览结果失败: {str(e)}"}), 500
 
 
@@ -390,9 +390,7 @@ def apply_partial_results():
                             with task_lock:
                                 current_task["applied_count"] += 1
                     except Exception as e:
-                        logging.error(
-                            f"应用商品 {result['item_id']} 分类失败: {str(e)}"
-                        )
+                        print(f"应用商品 {result['item_id']} 分类失败: {str(e)}")
                         error_count += 1
                         continue
 
@@ -409,14 +407,14 @@ def apply_partial_results():
             )
 
         except Exception as e:
-            logging.error(f"部分应用失败: {str(e)}")
+            print(f"部分应用失败: {str(e)}")
             return (
                 jsonify({"success": False, "message": f"部分应用失败: {str(e)}"}),
                 500,
             )
 
     except Exception as e:
-        logging.error(f"部分应用结果失败: {str(e)}")
+        print(f"部分应用结果失败: {str(e)}")
         return (
             jsonify({"success": False, "message": f"部分应用结果失败: {str(e)}"}),
             500,
@@ -486,7 +484,7 @@ def continue_recognition():
         )
 
     except Exception as e:
-        logging.error(f"继续识别失败: {str(e)}")
+        print(f"继续识别失败: {str(e)}")
         return jsonify({"success": False, "message": f"继续识别失败: {str(e)}"}), 500
 
 
@@ -524,7 +522,7 @@ def apply_results():
         return jsonify({"success": True, "message": "分类结果应用任务已启动"}), 202
 
     except Exception as e:
-        logging.error(f"应用结果失败: {str(e)}")
+        print(f"应用结果失败: {str(e)}")
         return jsonify({"success": False, "message": f"应用结果失败: {str(e)}"}), 500
 
 
@@ -546,7 +544,7 @@ def stop_task():
                 )
 
     except Exception as e:
-        logging.error(f"停止任务失败: {str(e)}")
+        print(f"停止任务失败: {str(e)}")
         return jsonify({"success": False, "message": f"停止任务失败: {str(e)}"}), 500
 
 
@@ -571,7 +569,7 @@ def clear_task():
         return jsonify({"success": True, "message": "任务结果已清理，系统已重置"})
 
     except Exception as e:
-        logging.error(f"清理任务失败: {str(e)}")
+        print(f"清理任务失败: {str(e)}")
         return jsonify({"success": False, "message": f"清理任务失败: {str(e)}"}), 500
 
 
@@ -589,7 +587,7 @@ def _process_batch_task(get_app_func, batch_size):
             _process_items_batch(items, batch_size, is_continue=False)
 
         except Exception as e:
-            logging.error(f"批量任务处理失败: {str(e)}")
+            print(f"批量任务处理失败: {str(e)}")
             with task_lock:
                 current_task["status"] = TaskStatus.FAILED
                 current_task["error_message"] = str(e)
@@ -606,7 +604,7 @@ def _continue_batch_task(get_app_func, remaining_items, batch_size):
             _process_items_batch(remaining_items, batch_size, is_continue=True)
 
         except Exception as e:
-            logging.error(f"继续批量任务处理失败: {str(e)}")
+            print(f"继续批量任务处理失败: {str(e)}")
             with task_lock:
                 current_task["status"] = TaskStatus.FAILED
                 current_task["error_message"] = str(e)
@@ -669,7 +667,9 @@ def _process_items_batch(items, batch_size, is_continue=False):
 
             # 如果批次处理失败，记录但继续处理下一批次
             if not batch_success:
-                logging.warning(f"批次 {batch_index} 处理失败，继续处理下一批次")
+                current_app.logger.warning(
+                    f"批次 {batch_index} 处理失败，继续处理下一批次"
+                )
 
             # 更新处理进度
             with task_lock:
@@ -684,7 +684,7 @@ def _process_items_batch(items, batch_size, is_continue=False):
             current_task["results_ready"] = True
 
     except Exception as e:
-        logging.error(f"商品批量处理失败: {str(e)}")
+        print(f"商品批量处理失败: {str(e)}")
         with task_lock:
             current_task["status"] = TaskStatus.FAILED
             current_task["error_message"] = str(e)
@@ -709,7 +709,7 @@ def _process_single_batch(ai_service, items_for_ai, batch_items):
             returned_item_ids = {result.get("item_id") for result in ai_results}
             for item in batch_items:
                 if item.id not in returned_item_ids:
-                    logging.warning(f"AI未返回商品 {item.id} 的分类结果")
+                    print(f"AI未返回商品 {item.id} 的分类结果")
                     with task_lock:
                         current_task["failed_count"] += 1
 
@@ -719,7 +719,7 @@ def _process_single_batch(ai_service, items_for_ai, batch_items):
             error_msg = (
                 ai_result.get("error", "AI处理失败") if ai_result else "AI返回空结果"
             )
-            logging.warning(f"AI批量分类失败: {error_msg}")
+            print(f"AI批量分类失败: {error_msg}")
 
             with task_lock:
                 current_task["failed_count"] += len(batch_items)
@@ -727,7 +727,7 @@ def _process_single_batch(ai_service, items_for_ai, batch_items):
             return False
 
     except Exception as e:
-        logging.error(f"处理批次失败: {str(e)}")
+        print(f"处理批次失败: {str(e)}")
         with task_lock:
             current_task["failed_count"] += len(batch_items)
         return False
@@ -746,7 +746,7 @@ def _process_single_item_result(ai_item_result, batch_items):
         # 找到对应的商品
         item = next((item for item in batch_items if item.id == item_id), None)
         if not item:
-            logging.warning(f"未找到ID为 {item_id} 的商品")
+            print(f"未找到ID为 {item_id} 的商品")
             with task_lock:
                 current_task["failed_count"] += 1
             return
@@ -754,7 +754,7 @@ def _process_single_item_result(ai_item_result, batch_items):
         # 验证新分类是否存在
         new_category = Category.query.get(new_category_id) if new_category_id else None
         if not new_category:
-            logging.warning(f"商品 {item_id} 的分类ID {new_category_id} 不存在")
+            print(f"商品 {item_id} 的分类ID {new_category_id} 不存在")
             with task_lock:
                 current_task["failed_count"] += 1
             return
@@ -782,9 +782,7 @@ def _process_single_item_result(ai_item_result, batch_items):
                 current_task["skipped_count"] += 1
 
     except Exception as e:
-        logging.error(
-            f"处理商品 {ai_item_result.get('item_id', 'unknown')} 结果失败: {str(e)}"
-        )
+        print(f"处理商品 {ai_item_result.get('item_id', 'unknown')} 结果失败: {str(e)}")
         with task_lock:
             current_task["failed_count"] += 1
 
@@ -832,7 +830,7 @@ def _apply_results_task(get_app_func, scope, batch_index):
                             current_task["applied_count"] += 1
 
                 except Exception as e:
-                    logging.error(f"应用商品 {result['item_id']} 分类失败: {str(e)}")
+                    print(f"应用商品 {result['item_id']} 分类失败: {str(e)}")
                     continue
 
             # 应用完成
@@ -840,7 +838,7 @@ def _apply_results_task(get_app_func, scope, batch_index):
                 current_task["status"] = TaskStatus.COMPLETED
 
         except Exception as e:
-            logging.error(f"应用结果任务失败: {str(e)}")
+            print(f"应用结果任务失败: {str(e)}")
             with task_lock:
                 current_task["status"] = TaskStatus.FAILED
                 current_task["error_message"] = str(e)
